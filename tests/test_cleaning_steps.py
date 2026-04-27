@@ -221,7 +221,7 @@ def test_assign_generation_requires_existing_columns() -> None:
 
 
 def test_compute_baseline_happy_path() -> None:
-    """1 機場 × 1 世代、30 日分運転（6 プラグ × 30 日 = 180 rows）で baseline 中央値が broadcast される。"""
+    """30 日分運転（6 プラグ × 30 日 = 180 rows）で baseline 中央値が broadcast される。"""
     ts = pd.date_range("2023-06-01 00:00", periods=30, freq="D")
     rows = []
     for day in ts:
