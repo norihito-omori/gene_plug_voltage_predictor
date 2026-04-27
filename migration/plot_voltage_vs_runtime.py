@@ -5,11 +5,13 @@
 - 横軸: 累積運転時間、縦軸: 要求電圧、点のサイズと透明度で密度を視認。
 - 列名差（EP370G 形式の `要求電圧_1..6` / EP400G 形式の `要求電圧1..6`）は自動判別。
 - **要求電圧 <= 10 の行はアイドル扱いで無視**（発電機停止時の 0 や低電圧ノイズを除外）。
+- **EP370G は ADR-012 の機場別開始日時カットオフを適用**（5630/9290/9380/9381/9690）。
 """
 
 from __future__ import annotations
 
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Final
 
@@ -25,6 +27,15 @@ _VOLTAGE_COLS_UNDERSCORE: Final[tuple[str, ...]] = tuple(f"要求電圧_{i}" for
 # 要求電圧がこれ以下の行はアイドル扱いで無視する（発電機停止時のノイズ除外）
 _IDLE_VOLTAGE_THRESHOLD: Final[float] = 10.0
 
+# ADR-012: EP370G 機場別の開始日時カットオフ（これより前の行は除外）
+_EP370G_START_DATETIMES: Final[dict[str, datetime]] = {
+    "5630": datetime(2022, 6, 26, 0, 30),
+    "9290": datetime(2022, 7, 21, 10, 0),
+    "9380": datetime(2023, 5, 31, 0, 30),
+    "9381": datetime(2023, 5, 31, 14, 0),
+    "9690": datetime(2024, 3, 19, 8, 30),
+}
+
 
 def _resolve_voltage_cols(path: Path) -> tuple[str, ...]:
     head = pd.read_csv(path, encoding="utf-8-sig", nrows=0)
@@ -36,7 +47,12 @@ def _resolve_voltage_cols(path: Path) -> tuple[str, ...]:
     raise ValueError(f"No complete 要求電圧 column set found in {path.name}")
 
 
-def _plot_one(path: Path, out_path: Path, model_label: str) -> None:
+def _plot_one(
+    path: Path,
+    out_path: Path,
+    model_label: str,
+    start_dt: datetime | None = None,
+) -> None:
     voltage_cols = _resolve_voltage_cols(path)
     df = pd.read_csv(
         path,
@@ -45,6 +61,10 @@ def _plot_one(path: Path, out_path: Path, model_label: str) -> None:
         dtype={_MGMT_COL: str},
     )
     df[_DT_COL] = pd.to_datetime(df[_DT_COL], errors="coerce")
+    rows_before_cutoff = len(df)
+    if start_dt is not None:
+        df = df[df[_DT_COL] >= start_dt].reset_index(drop=True)
+    rows_excluded = rows_before_cutoff - len(df)
     mgmt_no = str(df[_MGMT_COL].iloc[0]) if len(df) else path.stem
 
     fig, axes = plt.subplots(2, 3, figsize=(15, 8), sharex=True, sharey=True)
@@ -93,9 +113,12 @@ def _plot_one(path: Path, out_path: Path, model_label: str) -> None:
     dt_range = ""
     if pd.notna(dt_start) and pd.notna(dt_end):
         dt_range = f"{dt_start:%Y-%m-%d} - {dt_end:%Y-%m-%d}"
+    cutoff_note = ""
+    if start_dt is not None:
+        cutoff_note = f"  after {start_dt:%Y-%m-%d %H:%M} (excluded={rows_excluded})"
     fig.suptitle(
         f"{model_label} target_no={path.stem}  mgmt_no={mgmt_no}  rows={len(df)}  "
-        f"active={total_active}  {dt_range}  (voltage>{_IDLE_VOLTAGE_THRESHOLD:.0f})",
+        f"active={total_active}  {dt_range}  (voltage>{_IDLE_VOLTAGE_THRESHOLD:.0f}){cutoff_note}",
         fontsize=10,
     )
     fig.tight_layout()
@@ -109,10 +132,12 @@ def main(model: str) -> int:
         input_dir = Path("E:/gene/input/EP370G_orig")
         out_dir = Path(__file__).parent / "plots" / "ep370g"
         model_label = "EP370G"
+        start_map: dict[str, datetime] = dict(_EP370G_START_DATETIMES)
     elif model_key == "ep400g":
         input_dir = Path("E:/gene/input/EP400G_orig")
         out_dir = Path(__file__).parent / "plots" / "ep400g"
         model_label = "EP400G"
+        start_map = {}
     else:
         print(f"Unknown model: {model}. Expected EP370G or EP400G.", file=sys.stderr)
         return 2
@@ -127,8 +152,9 @@ def main(model: str) -> int:
     failed: list[tuple[str, str]] = []
     for i, path in enumerate(csvs, 1):
         out_path = out_dir / f"{path.stem}.png"
+        start_dt = start_map.get(path.stem)
         try:
-            _plot_one(path, out_path, model_label)
+            _plot_one(path, out_path, model_label, start_dt=start_dt)
         except Exception as exc:
             failed.append((path.name, str(exc)))
             print(f"  [{i}/{len(csvs)}] {path.name}: ERROR {exc}", file=sys.stderr)
