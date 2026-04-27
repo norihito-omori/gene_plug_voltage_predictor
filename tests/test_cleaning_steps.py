@@ -293,3 +293,31 @@ def test_compute_baseline_respects_gen_boundaries() -> None:
     gen1_baselines = result.df.loc[result.df["gen_no"] == 1, "baseline"].unique()
     assert list(gen0_baselines) == [30.0]
     assert list(gen1_baselines) == [22.0]
+
+
+def test_compute_baseline_requires_gen_col_and_voltage_col() -> None:
+    df_no_gen = pd.DataFrame({
+        "target_no": ["5630"],
+        "dailygraphpt_ptdatetime": pd.to_datetime(["2023-01-01"]),
+        "発電機電力": [300.0],
+        "要求電圧": [30.0],
+    })
+    with pytest.raises(ValueError, match="run assign_generation first"):
+        compute_baseline(
+            df_no_gen, id_col="target_no", gen_col="gen_no",
+            datetime_col="dailygraphpt_ptdatetime", voltage_col="要求電圧",
+            power_col="発電機電力",
+        )
+
+    df_no_volt = pd.DataFrame({
+        "target_no": ["5630"],
+        "dailygraphpt_ptdatetime": pd.to_datetime(["2023-01-01"]),
+        "発電機電力": [300.0],
+        "gen_no": [0],
+    })
+    with pytest.raises(ValueError, match="run melt_voltage_columns first"):
+        compute_baseline(
+            df_no_volt, id_col="target_no", gen_col="gen_no",
+            datetime_col="dailygraphpt_ptdatetime", voltage_col="要求電圧",
+            power_col="発電機電力",
+        )
