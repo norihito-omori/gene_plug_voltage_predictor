@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 
 from gene_plug_voltage_predictor.cleaning.steps import (
     StepResult,
@@ -89,6 +90,26 @@ def test_melt_voltage_columns_expands_to_long_format() -> None:
     for c in voltage_cols:
         assert c not in result.df.columns
     assert "melted" in result.note
+
+
+def test_melt_voltage_columns_rejects_empty_voltage_cols() -> None:
+    """空の voltage_cols は ValueError となる。"""
+    df = pd.DataFrame({"target_no": [563], "要求電圧_1": [221]})
+    with pytest.raises(ValueError, match="non-empty"):
+        melt_voltage_columns(df, location_no_col="target_no", voltage_cols=())
+
+
+def test_melt_voltage_columns_rejects_non_digit_suffix() -> None:
+    """末尾が数字でない列名は ValueError となる。"""
+    df = pd.DataFrame(
+        {"target_no": [563], "要求電圧_1": [221], "unknown_col": [0]}
+    )
+    with pytest.raises(ValueError, match="must end in a digit"):
+        melt_voltage_columns(
+            df,
+            location_no_col="target_no",
+            voltage_cols=("要求電圧_1", "unknown_col"),
+        )
 
 
 def test_exclude_location_plug_removes_by_composite_id() -> None:

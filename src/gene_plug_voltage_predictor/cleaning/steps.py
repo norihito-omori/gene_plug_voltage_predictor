@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass
 
@@ -80,6 +81,11 @@ def melt_voltage_columns(
     出力行数 = 入力行数 × len(voltage_cols)。
     """
     voltage_cols_list = list(voltage_cols)
+    if not voltage_cols_list:
+        raise ValueError("voltage_cols must be non-empty")
+    bad = [c for c in voltage_cols_list if not re.search(r"\d+$", c)]
+    if bad:
+        raise ValueError(f"voltage_cols must end in a digit: {bad}")
     id_vars = [c for c in df.columns if c not in voltage_cols_list]
     melted = df.melt(
         id_vars=id_vars,
