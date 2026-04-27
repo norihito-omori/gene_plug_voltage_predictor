@@ -5,6 +5,7 @@ import pytest
 
 from gene_plug_voltage_predictor.cleaning.steps import (
     StepResult,
+    assign_generation,
     exclude_location_plug,
     exclude_locations,
     filter_by_rated_power_ratio,
@@ -141,3 +142,23 @@ def test_exclude_location_plug_with_empty_excluded_returns_no_change() -> None:
     assert list(result.df["要求電圧"]) == [220, 230, 221]
     assert result.excluded_rows == 0
     assert result.note == "no ids excluded"
+
+
+def test_assign_generation_basic_boundaries() -> None:
+    df = pd.DataFrame({
+        "target_no": ["5630"] * 5,
+        "dailygraphpt_ptdatetime": pd.to_datetime([
+            "2022-07-01", "2023-05-14", "2023-05-15", "2024-08-22", "2025-01-01",
+        ]),
+    })
+    events = {
+        "5630": [pd.Timestamp("2023-05-15"), pd.Timestamp("2024-08-22")],
+    }
+    result = assign_generation(
+        df,
+        id_col="target_no",
+        datetime_col="dailygraphpt_ptdatetime",
+        events_by_location=events,
+    )
+    assert list(result.df["gen_no"]) == [0, 0, 1, 2, 2]
+    assert result.excluded_rows == 0

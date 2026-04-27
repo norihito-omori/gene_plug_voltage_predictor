@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
 import pandas as pd
@@ -129,3 +129,61 @@ def exclude_location_plug(
         f"excluded id={sorted(excluded_set)}" if excluded_set else "no ids excluded"
     )
     return StepResult(df=out, excluded_rows=len(df) - len(out), note=note)
+
+
+def assign_generation(
+    df: pd.DataFrame,
+    *,
+    id_col: str,
+    datetime_col: str,
+    events_by_location: Mapping[str, Sequence[pd.Timestamp]],
+    gen_col: str = "gen_no",
+) -> StepResult:
+    """各行に gen_no (int, 0-origin) を付与する（ADR-014 §C-5 基本形）。
+
+    比較は d = 行の datetime_col を normalize した日付で行う:
+      d < events[0]                   → gen_no = 0
+      events[k-1] <= d < events[k]    → gen_no = k
+      d >= events[last]               → gen_no = len(events)
+
+    events_by_location に無い機場は全行 gen_no = 0。
+    events は内部で normalize + sort + unique 化する。
+    """
+    for c in (id_col, datetime_col):
+        if c not in df.columns:
+            raise ValueError(f"missing required column: {c}")
+
+    dt = pd.to_datetime(df[datetime_col], errors="coerce").dt.normalize()
+    ids = df[id_col].astype(str)
+
+    cleaned_events: dict[str, list[pd.Timestamp]] = {}
+    for loc, evs in events_by_location.items():
+        norm = sorted({pd.Timestamp(e).normalize() for e in evs})
+        cleaned_events[str(loc)] = norm
+
+    gen = pd.Series(0, index=df.index, dtype="int64")
+    known_ids = set(cleaned_events.keys())
+    missing_ids = sorted(set(ids.unique()) - known_ids)
+
+    for loc, evs in cleaned_events.items():
+        if not evs:
+            continue
+        loc_mask = ids == loc
+        if not loc_mask.any():
+            continue
+        d_sub = dt[loc_mask]
+        values = pd.Series(evs).values
+        gens = pd.Series(
+            [int((values <= d).sum()) for d in d_sub.values],
+            index=d_sub.index,
+        )
+        gen.loc[loc_mask] = gens
+
+    out = df.copy()
+    out[gen_col] = gen.values
+    note_parts = [f"assigned gen_no for {len(cleaned_events)} locations"]
+    if missing_ids:
+        note_parts.append(
+            f"{len(missing_ids)} locations had no events (gen=0 全行)"
+        )
+    return StepResult(df=out, excluded_rows=0, note="; ".join(note_parts))
