@@ -3,39 +3,40 @@
 from __future__ import annotations
 
 from datetime import date
+from string import Template
 
 from .pipeline import CleaningHistory
 
-_TEMPLATE = """\
+_TEMPLATE = Template("""\
 ---
-id: clean-{run_date}-{dataset_name}
-date: {run_date}
-author: {author}
-model_type: {model_type}
-dataset_name: {dataset_name}
-input_rows: {input_rows}
-output_rows: {output_rows}
-output_path: {output_path}
-output_hash: {output_hash}
+id: clean-$run_date-$dataset_name
+date: $run_date
+author: $author
+model_type: $model_type
+dataset_name: $dataset_name
+input_rows: $input_rows
+output_rows: $output_rows
+output_path: $output_path
+output_hash: $output_hash
 status: draft
-related_adrs: [{related_adrs}]
+related_adrs: [$related_adrs]
 ---
 
-# {dataset_name} クリーニングログ
+# $dataset_name クリーニングログ
 
 ## 1. 入力データ
 
-- 行数: {input_rows}
+- 行数: $input_rows
 
 ## 2. クリーニング手順(実行順)
 
-{steps_block}
+$steps_block
 
 ## 3. 出力データ
 
-- パス: `{output_path}`
-- 行数: {output_rows}
-- SHA256: `{output_hash}`
+- パス: `$output_path`
+- 行数: $output_rows
+- SHA256: `$output_hash`
 
 ## 4. 検証
 
@@ -44,15 +45,15 @@ related_adrs: [{related_adrs}]
 ## 5. 備考・積み残し
 
 <!-- 人間が記入 -->
-"""
+""")
 
-_STEP_TEMPLATE = """\
-- Step {idx}: {name}
-  - 根拠: {adr}
-  - 備考: {note}
-  - 除外: {excluded_rows} 行
-  - 残: {rows_after} 行
-"""
+_STEP_TEMPLATE = Template("""\
+- Step $idx: $name
+  - 根拠: $adr
+  - 備考: $note
+  - 除外: $excluded_rows 行
+  - 残: $rows_after 行
+""")
 
 
 def render_cleaning_log(
@@ -67,7 +68,7 @@ def render_cleaning_log(
     related_adrs: list[str],
 ) -> str:
     steps_block = "\n".join(
-        _STEP_TEMPLATE.format(
+        _STEP_TEMPLATE.substitute(
             idx=i + 1,
             name=s.name,
             adr=s.adr,
@@ -77,7 +78,7 @@ def render_cleaning_log(
         )
         for i, s in enumerate(history.steps)
     )
-    return _TEMPLATE.format(
+    return _TEMPLATE.substitute(
         run_date=run_date.isoformat(),
         dataset_name=dataset_name,
         author=author,

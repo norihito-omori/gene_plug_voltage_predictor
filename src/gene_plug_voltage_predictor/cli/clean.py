@@ -68,12 +68,16 @@ def main() -> int:
     frames: list[pd.DataFrame] = []
     for loc in target_locations:
         csv = input_dir / f"{loc}.csv"
+        if not csv.exists():
+            print(f"ERROR: CSV not found for location {loc}: {csv}", file=sys.stderr)
+            return 2
         frames.append(
             load_raw_csv(csv, expected_model_type=model_type, schema=schema)
         )
     df = pd.concat(frames, ignore_index=True)
 
-    pipeline = CleaningPipeline(_build_specs(cfg.get("steps", []) or []))
+    specs = _build_specs(cfg.get("steps") or [])
+    pipeline = CleaningPipeline(specs)
     cleaned, history = pipeline.run(df)
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
@@ -93,7 +97,7 @@ def main() -> int:
             "decision-002",
             "decision-003",
         ]
-        + [s.adr for s in _build_specs(cfg.get("steps", []) or [])],
+        + [s.adr for s in specs],
     )
     args.cleaning_log.parent.mkdir(parents=True, exist_ok=True)
     args.cleaning_log.write_text(md, encoding="utf-8")

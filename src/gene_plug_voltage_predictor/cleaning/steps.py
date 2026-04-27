@@ -33,7 +33,7 @@ def filter_cumulative_runtime(
     df: pd.DataFrame,
     *,
     runtime_col: str,
-    min_hours: int,
+    min_hours: float,
 ) -> StepResult:
     """累積運転時間が閾値未満の行を除外。ADR-001 L-02 (500h 点検影響) で使用。"""
     mask = df[runtime_col] >= min_hours
