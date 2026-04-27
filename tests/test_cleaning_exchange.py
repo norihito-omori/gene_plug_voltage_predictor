@@ -79,3 +79,21 @@ def test_no_detection_without_shift() -> None:
     df = _synth_wide(days=60, exchanges=())
     events = detect_exchange_events(df, voltage_cols=_VCOLS)
     assert events == []
+
+
+def test_min_days_each_side_gate() -> None:
+    """交換の前後に運転日が 2 日しか無いと検出されない。"""
+    df = _synth_wide(
+        days=60,
+        exchanges=((30, (22, 22, 22, 22, 22, 22)),),
+    )
+    ts = df["dailygraphpt_ptdatetime"]
+    keep_days = {pd.Timestamp("2023-01-29"), pd.Timestamp("2023-01-30"),
+                 pd.Timestamp("2023-02-01"), pd.Timestamp("2023-02-02")}
+    mask = ts.dt.normalize().isin(keep_days)
+    df.loc[~mask, "発電機電力"] = 0.0
+
+    events = detect_exchange_events(
+        df, voltage_cols=_VCOLS, min_days_each_side=3,
+    )
+    assert events == []
