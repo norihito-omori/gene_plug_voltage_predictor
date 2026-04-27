@@ -76,3 +76,33 @@ def test_runtime_params_injects_events_dict() -> None:
     )
     assert list(out_df["gen_no"]) == [0, 1, 1]
     assert len(history.steps) == 1
+
+
+def test_runtime_params_overrides_static_params() -> None:
+    df = pd.DataFrame({
+        "target_no": ["5630"],
+        "dailygraphpt_ptdatetime": pd.to_datetime(["2024-01-01"]),
+    })
+    specs = [
+        StepSpec(
+            name="assign_generation",
+            adr="decision-014",
+            params={
+                "id_col": "target_no",
+                "datetime_col": "dailygraphpt_ptdatetime",
+                "events_by_location": {"5630": [pd.Timestamp("2025-01-01")]},  # 先の日、gen=0
+            },
+        ),
+    ]
+    pipeline = CleaningPipeline(specs)
+    # runtime で events を上書き → gen=1 になる
+    out_df, history = pipeline.run(
+        df,
+        runtime_params={
+            "assign_generation": {
+                "events_by_location": {"5630": [pd.Timestamp("2023-01-01")]},
+            },
+        },
+    )
+    assert list(out_df["gen_no"]) == [1]
+    assert "runtime-overridden keys" in history.steps[0].note
