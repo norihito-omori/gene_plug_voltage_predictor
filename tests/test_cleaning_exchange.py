@@ -149,3 +149,9 @@ def test_rejects_empty_voltage_cols() -> None:
     df = _synth_wide(days=10)
     with pytest.raises(ValueError, match="non-empty"):
         detect_exchange_events(df, voltage_cols=())
+
+
+def test_rejects_non_positive_quorum() -> None:
+    df = _synth_wide(days=10)
+    with pytest.raises(ValueError, match="plug_quorum must be >= 1"):
+        detect_exchange_events(df, voltage_cols=_VCOLS, plug_quorum=0)

@@ -124,6 +124,8 @@ def detect_exchange_events(
     vcols = list(voltage_cols)
     if not vcols:
         raise ValueError("voltage_cols must be non-empty")
+    if plug_quorum < 1:
+        raise ValueError(f"plug_quorum must be >= 1 (got {plug_quorum})")
     if plug_quorum > len(vcols):
         raise ValueError(
             f"plug_quorum ({plug_quorum}) exceeds voltage column count ({len(vcols)})"
