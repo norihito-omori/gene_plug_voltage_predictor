@@ -48,7 +48,15 @@ def main() -> int:
 
     result = dr_pipeline.run(cfg, train_path=args.train)
 
-    test_pred_hash = sha256_of_file(result.test_pred_csv)
+    # When test_path is not configured, pipeline.run() skips predict_dataset and
+    # returns test_pred_csv=None. Emit empty strings so the experiment log still
+    # renders cleanly (人間が後で埋める箇所になる).
+    if result.test_pred_csv is None:
+        test_pred_csv_str = ""
+        test_pred_hash = ""
+    else:
+        test_pred_csv_str = str(result.test_pred_csv).replace("\\", "/")
+        test_pred_hash = sha256_of_file(result.test_pred_csv)
 
     ctx = ExperimentContext(
         experiment_id=args.experiment_id,
@@ -66,7 +74,7 @@ def main() -> int:
         best_blueprint=result.best_blueprint,
         metric_name=result.metric_name,
         metric_value=result.metric_value,
-        test_pred_csv=str(result.test_pred_csv).replace("\\", "/"),
+        test_pred_csv=test_pred_csv_str,
         test_pred_hash=test_pred_hash,
     )
     md = render_experiment_log(ctx)

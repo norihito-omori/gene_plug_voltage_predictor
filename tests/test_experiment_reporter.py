@@ -38,3 +38,28 @@ def test_render_experiment_log_includes_frontmatter_and_sections() -> None:
     assert "12.34" in md
     assert "abc123" in md
     assert "## 4." in md
+
+
+def test_render_experiment_log_preserves_braces_in_user_fields() -> None:
+    ctx = ExperimentContext(
+        # minimal valid fields with braces in user text
+        experiment_id="exp-2026-05-07-01",
+        run_date=date(2026, 5, 7),
+        author="O",
+        model_type="EP370G",
+        topic="{brace-safe} run",
+        train_csv="outputs/x.csv",
+        train_csv_hash="sha256:a",
+        related_cleaning="clean-x",
+        related_adrs=[],
+        datarobot_project_id="p",
+        datarobot_project_url="u",
+        best_model_id="m",
+        best_blueprint="bp",
+        metric_name="RMSE",
+        metric_value=1.0,
+        test_pred_csv="outputs/y.csv",
+        test_pred_hash="sha256:b",
+    )
+    md = render_experiment_log(ctx)
+    assert "{brace-safe} run" in md
