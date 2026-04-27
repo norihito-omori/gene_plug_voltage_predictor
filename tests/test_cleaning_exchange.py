@@ -58,3 +58,18 @@ def _synth_wide(
 
 
 _VCOLS = tuple(f"要求電圧_{i}" for i in range(1, 7))
+
+
+from gene_plug_voltage_predictor.cleaning.exchange import detect_exchange_events
+
+
+def test_detects_clear_level_shift() -> None:
+    df = _synth_wide(
+        days=60,
+        plug_means=(30, 30, 30, 30, 30, 30),
+        exchanges=((30, (22, 22, 22, 22, 22, 22)),),
+    )
+    events = detect_exchange_events(df, voltage_cols=_VCOLS)
+    assert len(events) == 1
+    expected = pd.Timestamp("2023-01-31")  # start + 30 days
+    assert abs((events[0] - expected).days) <= 3
