@@ -268,3 +268,28 @@ def test_compute_baseline_nan_when_active_days_below_threshold() -> None:
     )
     assert result.df["baseline"].isna().all()
     assert "NaN=1" in result.note
+
+
+def test_compute_baseline_respects_gen_boundaries() -> None:
+    """2 世代分の行で、それぞれ独立した baseline が broadcast される。"""
+    rows: list[dict] = []
+    for day in pd.date_range("2023-01-01", periods=10, freq="D"):
+        rows.append({
+            "target_no": "5630", "dailygraphpt_ptdatetime": day,
+            "発電機電力": 300.0, "要求電圧": 30.0, "gen_no": 0,
+        })
+    for day in pd.date_range("2023-06-01", periods=10, freq="D"):
+        rows.append({
+            "target_no": "5630", "dailygraphpt_ptdatetime": day,
+            "発電機電力": 300.0, "要求電圧": 22.0, "gen_no": 1,
+        })
+    df = pd.DataFrame(rows)
+    result = compute_baseline(
+        df, id_col="target_no", gen_col="gen_no",
+        datetime_col="dailygraphpt_ptdatetime", voltage_col="要求電圧",
+        power_col="発電機電力",
+    )
+    gen0_baselines = result.df.loc[result.df["gen_no"] == 0, "baseline"].unique()
+    gen1_baselines = result.df.loc[result.df["gen_no"] == 1, "baseline"].unique()
+    assert list(gen0_baselines) == [30.0]
+    assert list(gen1_baselines) == [22.0]
