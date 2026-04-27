@@ -1,0 +1,60 @@
+from __future__ import annotations
+
+import numpy as np
+import pandas as pd
+import pytest
+
+
+def _synth_wide(
+    *,
+    start: str = "2023-01-01",
+    days: int = 60,
+    plug_means: tuple[float, ...] = (30.0, 30.0, 30.0, 30.0, 30.0, 30.0),
+    exchanges: tuple[tuple[int, tuple[float, ...]], ...] = (),
+    noise_std: float = 0.3,
+    running_pattern: str = "always",
+    rng_seed: int = 0,
+) -> pd.DataFrame:
+    """ADR-014 検出テスト用の合成横持ち DataFrame を返す。
+
+    - 日時粒度: 30 分 1 レコード（運転中相当）
+    - 列: dailygraphpt_ptdatetime, 発電機電力, 要求電圧_1..6
+    - exchanges=[(day_offset, new_means), ...] で shift を差し込む
+    - running_pattern='always' は全サンプル 発電機電力=300 (>0)
+    """
+    rng = np.random.default_rng(rng_seed)
+    start_ts = pd.Timestamp(start)
+    n = days * 48  # 30min × 48 = 1 day
+    timestamps = pd.date_range(start=start_ts, periods=n, freq="30min")
+
+    current = np.array(plug_means, dtype=float)
+    sorted_ev = sorted(exchanges, key=lambda x: x[0])
+
+    def _means_at(day: int) -> np.ndarray:
+        m = np.array(plug_means, dtype=float)
+        for off, nm in sorted_ev:
+            if day >= off:
+                m = np.array(nm, dtype=float)
+        return m
+
+    voltages = np.zeros((n, 6), dtype=float)
+    for i, ts in enumerate(timestamps):
+        day = (ts - start_ts).days
+        m = _means_at(day)
+        voltages[i] = m + rng.normal(0, noise_std, size=6)
+
+    power = np.full(n, 300.0) if running_pattern == "always" else np.zeros(n)
+
+    return pd.DataFrame({
+        "dailygraphpt_ptdatetime": timestamps,
+        "発電機電力": power,
+        "要求電圧_1": voltages[:, 0],
+        "要求電圧_2": voltages[:, 1],
+        "要求電圧_3": voltages[:, 2],
+        "要求電圧_4": voltages[:, 3],
+        "要求電圧_5": voltages[:, 4],
+        "要求電圧_6": voltages[:, 5],
+    })
+
+
+_VCOLS = tuple(f"要求電圧_{i}" for i in range(1, 7))
