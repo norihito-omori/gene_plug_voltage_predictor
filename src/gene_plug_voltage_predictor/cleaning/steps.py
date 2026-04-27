@@ -173,6 +173,9 @@ def assign_generation(
             continue
         d_sub = dt[loc_mask]
         values = pd.Series(evs).values
+        # Boundary rule (ADR-014 §C-5): d.normalize() >= event_date → new generation.
+        # (values <= d).sum() counts the event day itself in the new gen; using > /
+        # side="right" would shift the boundary by one day and misclassify event-day rows.
         gens = pd.Series(
             [int((values <= d).sum()) for d in d_sub.values],
             index=d_sub.index,
