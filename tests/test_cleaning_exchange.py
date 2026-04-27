@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from gene_plug_voltage_predictor.cleaning.exchange import detect_exchange_events
+
 
 def _synth_wide(
     *,
@@ -27,7 +29,6 @@ def _synth_wide(
     n = days * 48  # 30min × 48 = 1 day
     timestamps = pd.date_range(start=start_ts, periods=n, freq="30min")
 
-    current = np.array(plug_means, dtype=float)
     sorted_ev = sorted(exchanges, key=lambda x: x[0])
 
     def _means_at(day: int) -> np.ndarray:
@@ -58,9 +59,6 @@ def _synth_wide(
 
 
 _VCOLS = tuple(f"要求電圧_{i}" for i in range(1, 7))
-
-
-from gene_plug_voltage_predictor.cleaning.exchange import detect_exchange_events
 
 
 def test_detects_clear_level_shift() -> None:
