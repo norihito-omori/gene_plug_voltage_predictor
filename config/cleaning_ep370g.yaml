@@ -1,15 +1,17 @@
 model_type: EP370G
+# specs/input_schema.md §4: EP370G の mcnkind_id コード。
+expected_mcnkind_id: 54
 rated_power_kw: 370
 input_dir: E:/gene/input/EP370G_orig
 dataset_name: ep370g-baseline
 # ADR-003 で確定。空だと CLI がエラー。
 target_locations: []
-# ADR-001 の棚卸し結果に応じて追加。
+# ADR-001 / ADR-004..008 の棚卸し結果に応じて追加。
 steps:
   # 例（L-01 採用時）
   # - name: exclude_locations
   #   enabled: true
   #   adr: decision-004
   #   params:
-  #     location_col: location
+  #     location_col: target_id
   #     excluded: [8950]

@@ -1,4 +1,6 @@
 model_type: EP400G
+# specs/input_schema.md §4: EP400G の mcnkind_id コード。
+expected_mcnkind_id: 115
 rated_power_kw: 400
 input_dir: E:/gene/input/EP400G_orig
 dataset_name: ep400g-baseline

@@ -54,6 +54,15 @@ def main() -> int:
 
     cfg = _load_yaml(args.config)
     model_type: str = cfg["model_type"]
+    if "expected_mcnkind_id" not in cfg:
+        print(
+            f"ERROR: expected_mcnkind_id is required in {args.config} "
+            "(see specs/input_schema.md §4 / ADR-010).",
+            file=sys.stderr,
+        )
+        return 2
+    expected_mcnkind_id: int = int(cfg["expected_mcnkind_id"])
+    expected_rated_kw: int = int(cfg["rated_power_kw"])
     input_dir = Path(cfg["input_dir"])
     target_locations: list[int | str] = cfg.get("target_locations") or []
     if not target_locations:
@@ -72,7 +81,12 @@ def main() -> int:
             print(f"ERROR: CSV not found for location {loc}: {csv}", file=sys.stderr)
             return 2
         frames.append(
-            load_raw_csv(csv, expected_model_type=model_type, schema=schema)
+            load_raw_csv(
+                csv,
+                expected_mcnkind_id=expected_mcnkind_id,
+                expected_rated_kw=expected_rated_kw,
+                schema=schema,
+            )
         )
     df = pd.concat(frames, ignore_index=True)
 
@@ -96,6 +110,8 @@ def main() -> int:
             "decision-001",
             "decision-002",
             "decision-003",
+            "decision-009",
+            "decision-010",
         ]
         + [s.adr for s in specs],
     )

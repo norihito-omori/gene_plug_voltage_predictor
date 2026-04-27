@@ -8,7 +8,6 @@ import pytest
 from gene_plug_voltage_predictor.io.csv_loader import load_raw_csv
 from gene_plug_voltage_predictor.io.schema import InputSchema
 
-
 _EP370G_HEADER = (
     "target_id,target_no,mcnkind_id,dailygraphpt_ptdatetime,target_output,"
     "要求電圧_1,要求電圧_2,要求電圧_3,要求電圧_4,要求電圧_5,要求電圧_6"
