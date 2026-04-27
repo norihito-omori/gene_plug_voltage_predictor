@@ -1,4 +1,4 @@
-"""クリーニングステップ（純粋関数）。各ステップは DataFrame → StepResult を返す。"""
+"""クリーニングステップ(純粋関数)。各ステップは DataFrame -> StepResult を返す。"""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ def exclude_locations(
     location_col: str,
     excluded: Iterable[int | str],
 ) -> StepResult:
-    """指定機場を除外する。ADR-001 L-01（8950 除外）等で使用。"""
+    """指定機場を除外する。ADR-001 L-01 (8950 除外) 等で使用。"""
     excluded_set = set(excluded)
     mask = ~df[location_col].isin(excluded_set)
     out = df.loc[mask].reset_index(drop=True)
@@ -35,7 +35,7 @@ def filter_cumulative_runtime(
     runtime_col: str,
     min_hours: int,
 ) -> StepResult:
-    """累積運転時間が閾値未満の行を除外。ADR-001 L-02（500h 点検影響）で使用。"""
+    """累積運転時間が閾値未満の行を除外。ADR-001 L-02 (500h 点検影響) で使用。"""
     mask = df[runtime_col] >= min_hours
     out = df.loc[mask].reset_index(drop=True)
     return StepResult(
@@ -52,7 +52,7 @@ def filter_by_rated_power_ratio(
     rated_kw: int,
     ratio: float,
 ) -> StepResult:
-    """定格電力比率以上の行のみ残す。ADR-001 L-04（80% 以上）で使用。"""
+    """定格電力比率以上の行のみ残す。ADR-001 L-04 (80% 以上) で使用。"""
     threshold = rated_kw * ratio
     mask = df[power_col] >= threshold
     out = df.loc[mask].reset_index(drop=True)

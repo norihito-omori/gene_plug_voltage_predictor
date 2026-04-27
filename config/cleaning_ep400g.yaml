@@ -1,0 +1,6 @@
+model_type: EP400G
+rated_power_kw: 400
+input_dir: E:/gene/input/EP400G_orig
+dataset_name: ep400g-baseline
+target_locations: []
+steps: []

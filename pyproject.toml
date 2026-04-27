@@ -42,3 +42,7 @@ addopts = "-v --strict-markers"
 [tool.mypy]
 python_version = "3.13"
 strict = true
+
+[[tool.mypy.overrides]]
+module = ["pandas", "pandas.*", "yaml"]
+ignore_missing_imports = true

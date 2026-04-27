@@ -1,4 +1,4 @@
-"""raw CSV 読み込み＋機種整合性チェック。"""
+"""raw CSV 読み込み + 機種整合性チェック。"""
 
 from __future__ import annotations
 

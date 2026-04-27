@@ -14,7 +14,7 @@ class InputSchema(BaseModel):
     location_col: str = Field(default="location", description="機場 No 列")
     model_type_col: str = Field(default="model_type", description="機種列")
     datetime_col: str = Field(default="measured_at", description="計測日時列")
-    target_col: str = Field(default="plug_voltage", description="目的変数（プラグ電圧）")
+    target_col: str = Field(default="plug_voltage", description="目的変数(プラグ電圧)")
 
     @property
     def required_columns(self) -> list[str]:

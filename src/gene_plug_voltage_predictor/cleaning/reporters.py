@@ -27,7 +27,7 @@ related_adrs: [{related_adrs}]
 
 - 行数: {input_rows}
 
-## 2. クリーニング手順（実行順）
+## 2. クリーニング手順(実行順)
 
 {steps_block}
 
