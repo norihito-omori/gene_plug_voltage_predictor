@@ -30,6 +30,7 @@ _IDLE_VOLTAGE_THRESHOLD: Final[float] = 10.0
 # ADR-012: EP370G 機場別の開始日時カットオフ（これより前の行は除外）
 _EP370G_START_DATETIMES: Final[dict[str, datetime]] = {
     "5630": datetime(2022, 6, 26, 0, 30),
+    "8950": datetime(2021, 6, 12, 20, 30),
     "9290": datetime(2022, 7, 21, 10, 0),
     "9380": datetime(2023, 5, 31, 0, 30),
     "9381": datetime(2023, 5, 31, 14, 0),
