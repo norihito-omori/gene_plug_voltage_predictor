@@ -97,3 +97,14 @@ def test_min_days_each_side_gate() -> None:
         df, voltage_cols=_VCOLS, min_days_each_side=3,
     )
     assert events == []
+
+
+def test_nan_plug_excluded_from_quorum() -> None:
+    """Plug 6 が全 NaN でも、残り 5 プラグで shift が検出されれば quorum=3 で検出。"""
+    df = _synth_wide(
+        days=60,
+        exchanges=((30, (22, 22, 22, 22, 22, 22)),),
+    )
+    df["要求電圧_6"] = float("nan")
+    events = detect_exchange_events(df, voltage_cols=_VCOLS)
+    assert len(events) == 1
