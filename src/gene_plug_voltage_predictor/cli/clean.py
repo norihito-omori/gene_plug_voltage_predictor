@@ -71,29 +71,51 @@ def _write_events_csv(
     )
 
 
+_REQUIRED_CONFIG_KEYS = (
+    "model_type",
+    "expected_mcnkind_id",
+    "rated_power_kw",
+    "input_dir",
+    "dataset_name",
+)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Clean raw CSVs into training dataset")
-    ap.add_argument("--config", required=True, type=Path)
-    ap.add_argument("--out", required=True, type=Path)
-    ap.add_argument("--cleaning-log", required=True, type=Path)
+    ap.add_argument(
+        "--config", required=True, type=Path,
+        help="クリーニング設定 YAML (model_type, target_locations, steps など)",
+    )
+    ap.add_argument(
+        "--out", required=True, type=Path,
+        help="クリーニング済み CSV の出力先",
+    )
+    ap.add_argument(
+        "--cleaning-log", required=True, type=Path,
+        help="クリーニングログ Markdown の出力先",
+    )
     ap.add_argument(
         "--events-out", type=Path, default=None,
         help="交換検出イベントの CSV 出力先(省略時は出力しない)",
     )
-    ap.add_argument("--author", default="大森")
+    ap.add_argument(
+        "--author", default="大森",
+        help="cleaning ログの著者名 (default: 大森)",
+    )
     args = ap.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
     cfg = _load_yaml(args.config)
-    model_type: str = cfg["model_type"]
-    if "expected_mcnkind_id" not in cfg:
+    missing = [k for k in _REQUIRED_CONFIG_KEYS if k not in cfg]
+    if missing:
         print(
-            f"ERROR: expected_mcnkind_id is required in {args.config} "
+            f"ERROR: required config keys missing in {args.config}: {missing} "
             "(see specs/input_schema.md §4 / ADR-010).",
             file=sys.stderr,
         )
         return 2
+    model_type: str = cfg["model_type"]
     expected_mcnkind_id: int = int(cfg["expected_mcnkind_id"])
     expected_rated_kw: int = int(cfg["rated_power_kw"])
     input_dir = Path(cfg["input_dir"])
