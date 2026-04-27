@@ -4,7 +4,9 @@
 - 1 機場 = 1 PNG、6 プラグを 2x3 サブプロットで並べる。
 - 横軸: 累積運転時間、縦軸: 要求電圧、点のサイズと透明度で密度を視認。
 - 列名差（EP370G 形式の `要求電圧_1..6` / EP400G 形式の `要求電圧1..6`）は自動判別。
-- **要求電圧 <= 10 の行はアイドル扱いで無視**（発電機停止時の 0 や低電圧ノイズを除外）。
+- **運転中判定は `発電機電力 > 0`**（ADR-013 C-1: 停止中保持値問題への対応）。
+  過去は `要求電圧 > 10` で判定していたが、停止中でも前回値が保持される仕様のため
+  保持値汚染が除去できていなかった。プロット対象は運転中かつセンサー値 > 0 の行のみ。
 - **EP370G は ADR-012 の機場別開始日時カットオフを適用**（5630/8950/9290/9380/9381/9690）。
 - **累積運転時間はパック形式（上位 3 バイト=時 / 下位 1 バイト=分）をアンパックして実時間（h）で描画**。
   仕様は `60_domains/ress/gene_short_data_analysis.md` §4 に従う。
@@ -25,11 +27,9 @@ from runtime_utils import unpack_to_hours
 _DT_COL: Final[str] = "dailygraphpt_ptdatetime"
 _MGMT_COL: Final[str] = "管理No"
 _RT_COL: Final[str] = "累積運転時間"
+_POWER_COL: Final[str] = "発電機電力"
 _VOLTAGE_COLS_NO_UNDERSCORE: Final[tuple[str, ...]] = tuple(f"要求電圧{i}" for i in range(1, 7))
 _VOLTAGE_COLS_UNDERSCORE: Final[tuple[str, ...]] = tuple(f"要求電圧_{i}" for i in range(1, 7))
-
-# 要求電圧がこれ以下の行はアイドル扱いで無視する（発電機停止時のノイズ除外）
-_IDLE_VOLTAGE_THRESHOLD: Final[float] = 10.0
 
 # ADR-012: EP370G 機場別の開始日時カットオフ（これより前の行は除外）
 _EP370G_START_DATETIMES: Final[dict[str, datetime]] = {
@@ -62,7 +62,7 @@ def _plot_one(
     df = pd.read_csv(
         path,
         encoding="utf-8-sig",
-        usecols=[_MGMT_COL, _DT_COL, _RT_COL, *voltage_cols],
+        usecols=[_MGMT_COL, _DT_COL, _RT_COL, _POWER_COL, *voltage_cols],
         dtype={_MGMT_COL: str},
     )
     df[_DT_COL] = pd.to_datetime(df[_DT_COL], errors="coerce")
@@ -72,6 +72,7 @@ def _plot_one(
         df = df[df[_DT_COL] >= start_dt].reset_index(drop=True)
     rows_excluded = rows_before_cutoff - len(df)
     mgmt_no = str(df[_MGMT_COL].iloc[0]) if len(df) else path.stem
+    running_mask = df[_POWER_COL] > 0
 
     fig, axes = plt.subplots(2, 3, figsize=(15, 8), sharex=True, sharey=True)
     axes_flat = axes.flatten()
@@ -79,7 +80,7 @@ def _plot_one(
     active_series: list[pd.Series] = []
     for c in voltage_cols:
         s = df[c]
-        active_series.append(s[s > _IDLE_VOLTAGE_THRESHOLD])
+        active_series.append(s[running_mask & s.notna() & (s > 0)])
     voltage_concat = pd.concat(active_series) if active_series else pd.Series(dtype=float)
 
     if len(voltage_concat):
@@ -97,7 +98,7 @@ def _plot_one(
     for i, col in enumerate(voltage_cols):
         ax = axes_flat[i]
         y = df[col]
-        active_mask = y > _IDLE_VOLTAGE_THRESHOLD
+        active_mask = running_mask & y.notna() & (y > 0)
         n_active = int(active_mask.sum())
         total_active += n_active
         n_out = int(((y[active_mask] < ylim[0]) | (y[active_mask] > ylim[1])).sum())
@@ -124,7 +125,7 @@ def _plot_one(
         cutoff_note = f"  after {start_dt:%Y-%m-%d %H:%M} (excluded={rows_excluded})"
     fig.suptitle(
         f"{model_label} target_no={path.stem}  mgmt_no={mgmt_no}  rows={len(df)}  "
-        f"active={total_active}  {dt_range}  (voltage>{_IDLE_VOLTAGE_THRESHOLD:.0f}){cutoff_note}",
+        f"active={total_active}  {dt_range}  (power>0){cutoff_note}",
         fontsize=10,
     )
     fig.tight_layout()
