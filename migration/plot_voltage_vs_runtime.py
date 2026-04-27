@@ -5,7 +5,9 @@
 - 横軸: 累積運転時間、縦軸: 要求電圧、点のサイズと透明度で密度を視認。
 - 列名差（EP370G 形式の `要求電圧_1..6` / EP400G 形式の `要求電圧1..6`）は自動判別。
 - **要求電圧 <= 10 の行はアイドル扱いで無視**（発電機停止時の 0 や低電圧ノイズを除外）。
-- **EP370G は ADR-012 の機場別開始日時カットオフを適用**（5630/9290/9380/9381/9690）。
+- **EP370G は ADR-012 の機場別開始日時カットオフを適用**（5630/8950/9290/9380/9381/9690）。
+- **累積運転時間はパック形式（上位 3 バイト=時 / 下位 1 バイト=分）をアンパックして実時間（h）で描画**。
+  仕様は `60_domains/ress/gene_short_data_analysis.md` §4 に従う。
 """
 
 from __future__ import annotations
@@ -17,6 +19,8 @@ from typing import Final
 
 import matplotlib.pyplot as plt
 import pandas as pd
+
+from runtime_utils import unpack_to_hours
 
 _DT_COL: Final[str] = "dailygraphpt_ptdatetime"
 _MGMT_COL: Final[str] = "管理No"
@@ -62,6 +66,7 @@ def _plot_one(
         dtype={_MGMT_COL: str},
     )
     df[_DT_COL] = pd.to_datetime(df[_DT_COL], errors="coerce")
+    df[_RT_COL] = unpack_to_hours(df[_RT_COL])
     rows_before_cutoff = len(df)
     if start_dt is not None:
         df = df[df[_DT_COL] >= start_dt].reset_index(drop=True)
@@ -105,7 +110,7 @@ def _plot_one(
         ax.set_title(title, fontsize=9)
         ax.grid(True, alpha=0.3)
         if i >= 3:
-            ax.set_xlabel("cumulative runtime")
+            ax.set_xlabel("cumulative runtime [h]")
         if i % 3 == 0:
             ax.set_ylabel("voltage")
 
