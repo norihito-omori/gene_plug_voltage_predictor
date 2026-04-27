@@ -60,6 +60,7 @@ class LocationStats:
     voltage_active_rate: float
     voltage_na_rate: float
     active_rows_per_plug: str
+    plug_activity_imbalance_ratio: float
     exchange_candidates_total: int
     exchange_candidates_per_plug: str
 
@@ -119,6 +120,11 @@ def _analyze_one(path: Path) -> LocationStats:
         per_plug.append(count)
     exchange_total = sum(per_plug)
 
+    # 最少プラグ / 最多プラグの比。1.0 が理想、低いほどセンサー異常の疑い濃。
+    max_active = max(active_rows) if active_rows else 0
+    min_active = min(active_rows) if active_rows else 0
+    imbalance = (min_active / max_active) if max_active > 0 else 0.0
+
     return LocationStats(
         target_no=path.stem,
         mgmt_no=mgmt_no,
@@ -133,6 +139,7 @@ def _analyze_one(path: Path) -> LocationStats:
         voltage_active_rate=voltage_active_rate,
         voltage_na_rate=voltage_na_rate,
         active_rows_per_plug=",".join(str(x) for x in active_rows),
+        plug_activity_imbalance_ratio=float(imbalance),
         exchange_candidates_total=exchange_total,
         exchange_candidates_per_plug=",".join(str(x) for x in per_plug),
     )
@@ -165,7 +172,9 @@ def _write_markdown(df: pd.DataFrame, out_path: Path, model_label: str, input_di
         f"- ソート: `rt_span` 降順（累積運転時間の伸びが大きい順）\n"
         f"- アイドル除外: 要求電圧 <= {_IDLE_VOLTAGE_THRESHOLD:.0f} の行は無視\n"
         f"- 交換候補しきい値: 要求電圧の 1 ステップ絶対値変化 > {_EXCHANGE_JUMP_THRESHOLD}\n"
-        f"- `voltage_active_rate`: いずれかのプラグで要求電圧 > {_IDLE_VOLTAGE_THRESHOLD:.0f} の行率\n\n"
+        f"- `voltage_active_rate`: いずれかのプラグで要求電圧 > {_IDLE_VOLTAGE_THRESHOLD:.0f} の行率\n"
+        f"- `plug_activity_imbalance_ratio`: 最少 active プラグ行数 / 最多 active プラグ行数。"
+        f"0.8 未満はセンサー異常の疑い（ADR-011 判定対象）。\n\n"
     )
     out_path.write_text(header + _to_markdown_table(df) + "\n", encoding="utf-8")
 
@@ -206,6 +215,25 @@ def main(model: str) -> int:
     df = df.sort_values("rt_span", ascending=False).reset_index(drop=True)
     df.to_csv(out_csv, index=False, encoding="utf-8-sig")
     _write_markdown(df, out_md, model_label, input_dir)
+
+    # voltage_active_rate=0 の機場は「全プラグ停止」であってアンバランスではない。
+    # 部分的異常（一部プラグだけ極端に少ない）のみを警告対象にする。
+    suspects = df[
+        (df["plug_activity_imbalance_ratio"] < 0.8)
+        & (df["voltage_active_rate"] > 0.0)
+    ]
+    if not suspects.empty:
+        print(
+            f"\n[WARN] {len(suspects)} location(s) with partial plug activity imbalance < 0.8 "
+            f"(possible sensor defect; human review required per ADR-011):",
+            file=sys.stderr,
+        )
+        for _, row in suspects.iterrows():
+            print(
+                f"  {row['target_no']}: ratio={row['plug_activity_imbalance_ratio']:.3f} "
+                f"active_per_plug=[{row['active_rows_per_plug']}]",
+                file=sys.stderr,
+            )
 
     print(f"Wrote: {out_csv}", file=sys.stderr)
     print(f"Wrote: {out_md}", file=sys.stderr)
