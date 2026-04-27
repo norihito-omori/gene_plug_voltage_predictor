@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import datetime
-from typing import Any, Final, Mapping
+from typing import Any, Final
 
 EP370G_RATED_POWER_KW: Final[int] = 370
 EP400G_RATED_POWER_KW: Final[int] = 400

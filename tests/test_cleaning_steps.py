@@ -247,7 +247,7 @@ def test_compute_baseline_happy_path() -> None:
     # 各日の max = 31（プラグ6）、30 日分の median = 31
     assert result.excluded_rows == 0
     assert set(result.df["baseline"].unique()) == {31.0}
-    assert "1 組" in result.note or "1 groups" in result.note or "有効" in result.note
+    assert "有効=1" in result.note
 
 
 def test_compute_baseline_nan_when_active_days_below_threshold() -> None:
@@ -293,6 +293,30 @@ def test_compute_baseline_respects_gen_boundaries() -> None:
     gen1_baselines = result.df.loc[result.df["gen_no"] == 1, "baseline"].unique()
     assert list(gen0_baselines) == [30.0]
     assert list(gen1_baselines) == [22.0]
+
+
+def test_compute_baseline_ignores_days_where_all_voltage_is_nan() -> None:
+    """全プラグ NaN の日は active_days に寄与しない(groupby.max の dropna で除外)。"""
+    rows: list[dict] = []
+    # 6 日間は全 NaN、続く 5 日は 30.0 → active_days = 5 (< min_active_days=7) で NaN
+    for day in pd.date_range("2023-06-01", periods=6, freq="D"):
+        rows.append({
+            "target_no": "5630", "dailygraphpt_ptdatetime": day,
+            "発電機電力": 300.0, "要求電圧": float("nan"), "gen_no": 0,
+        })
+    for day in pd.date_range("2023-06-07", periods=5, freq="D"):
+        rows.append({
+            "target_no": "5630", "dailygraphpt_ptdatetime": day,
+            "発電機電力": 300.0, "要求電圧": 30.0, "gen_no": 0,
+        })
+    df = pd.DataFrame(rows)
+    result = compute_baseline(
+        df, id_col="target_no", gen_col="gen_no",
+        datetime_col="dailygraphpt_ptdatetime", voltage_col="要求電圧",
+        power_col="発電機電力",
+    )
+    assert result.df["baseline"].isna().all()
+    assert "NaN=1" in result.note
 
 
 def test_compute_baseline_requires_gen_col_and_voltage_col() -> None:

@@ -228,10 +228,9 @@ def compute_baseline(
         if c not in df.columns:
             raise ValueError(f"missing required column: {c}")
 
-    work = df.copy()
-    work[datetime_col] = pd.to_datetime(work[datetime_col], errors="coerce")
-    running = work[work[power_col] > 0].copy()
-    running["_date"] = running[datetime_col].dt.normalize()
+    dt = pd.to_datetime(df[datetime_col], errors="coerce")
+    running = df.loc[df[power_col] > 0].copy()
+    running["_date"] = dt.loc[running.index].dt.normalize()
 
     baseline_rows: list[dict] = []
     total_groups = 0
