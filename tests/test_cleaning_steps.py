@@ -126,3 +126,18 @@ def test_exclude_location_plug_removes_by_composite_id() -> None:
     assert list(result.df["管理No_プラグNo"]) == ["5630_1", "9221_5", "5630_6"]
     assert result.excluded_rows == 1
     assert "9221_4" in result.note
+
+
+def test_exclude_location_plug_with_empty_excluded_returns_no_change() -> None:
+    """空の excluded では行数も内容も変わらず、note は 'no ids excluded'。"""
+    df = pd.DataFrame(
+        {
+            "管理No_プラグNo": ["5630_1", "9221_4", "5630_6"],
+            "要求電圧": [220, 230, 221],
+        }
+    )
+    result = exclude_location_plug(df, id_col="管理No_プラグNo", excluded=())
+    assert list(result.df["管理No_プラグNo"]) == ["5630_1", "9221_4", "5630_6"]
+    assert list(result.df["要求電圧"]) == [220, 230, 221]
+    assert result.excluded_rows == 0
+    assert result.note == "no ids excluded"

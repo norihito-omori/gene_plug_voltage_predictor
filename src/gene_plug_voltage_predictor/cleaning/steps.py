@@ -22,7 +22,10 @@ def exclude_locations(
     location_col: str,
     excluded: Iterable[int | str],
 ) -> StepResult:
-    """指定機場を除外する。ADR-001 L-01 (8950 除外) 等で使用。"""
+    """指定機場を除外する。ADR-001 L-01 (8950 除外) 等で使用。
+
+    See exclude_location_plug for composite location×plug ID exclusion (ADR-001 L-03).
+    """
     excluded_set = set(excluded)
     mask = ~df[location_col].isin(excluded_set)
     out = df.loc[mask].reset_index(drop=True)
@@ -115,7 +118,10 @@ def exclude_location_plug(
     id_col: str,
     excluded: Iterable[str],
 ) -> StepResult:
-    """指定の `管理No_プラグNo` を除外する。ADR-001 L-03（9221 プラグ 4 除外）等で使用。"""
+    """指定の `管理No_プラグNo` を除外する。ADR-001 L-03（9221 プラグ 4 除外）等で使用。
+
+    See exclude_locations for whole-location exclusion (ADR-001 L-01).
+    """
     excluded_set = set(excluded)
     mask = ~df[id_col].isin(excluded_set)
     out = df.loc[mask].reset_index(drop=True)
