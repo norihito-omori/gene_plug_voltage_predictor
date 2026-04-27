@@ -132,3 +132,22 @@ def test_cutoff_filter_drops_early_running() -> None:
         df, voltage_cols=_VCOLS, cutoff=pd.Timestamp("2023-02-01"),
     )
     assert events == []
+
+
+def test_empty_input_returns_empty_list() -> None:
+    """running 行がゼロの場合 ValueError ではなく [] を返す。"""
+    df = _synth_wide(days=60, running_pattern="none")
+    events = detect_exchange_events(df, voltage_cols=_VCOLS)
+    assert events == []
+
+
+def test_rejects_invalid_quorum() -> None:
+    df = _synth_wide(days=10)
+    with pytest.raises(ValueError, match="plug_quorum"):
+        detect_exchange_events(df, voltage_cols=_VCOLS, plug_quorum=10)
+
+
+def test_rejects_empty_voltage_cols() -> None:
+    df = _synth_wide(days=10)
+    with pytest.raises(ValueError, match="non-empty"):
+        detect_exchange_events(df, voltage_cols=())
