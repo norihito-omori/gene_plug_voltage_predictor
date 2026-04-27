@@ -51,3 +51,28 @@ def test_pipeline_raises_on_unknown_step() -> None:
         assert "unknown step" in str(e)
     else:
         raise AssertionError("should have raised")
+
+
+def test_runtime_params_injects_events_dict() -> None:
+    """runtime_params で assign_generation に events_by_location を注入できる。"""
+    df = pd.DataFrame({
+        "target_no": ["5630", "5630", "5630"],
+        "dailygraphpt_ptdatetime": pd.to_datetime([
+            "2023-01-01", "2023-06-01", "2024-01-01",
+        ]),
+    })
+    specs = [
+        StepSpec(
+            name="assign_generation",
+            adr="decision-014",
+            params={"id_col": "target_no", "datetime_col": "dailygraphpt_ptdatetime"},
+        ),
+    ]
+    events = {"5630": [pd.Timestamp("2023-05-01")]}
+    pipeline = CleaningPipeline(specs)
+    out_df, history = pipeline.run(
+        df,
+        runtime_params={"assign_generation": {"events_by_location": events}},
+    )
+    assert list(out_df["gen_no"]) == [0, 1, 1]
+    assert len(history.steps) == 1
