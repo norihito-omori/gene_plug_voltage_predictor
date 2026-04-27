@@ -248,3 +248,23 @@ def test_compute_baseline_happy_path() -> None:
     assert result.excluded_rows == 0
     assert set(result.df["baseline"].unique()) == {31.0}
     assert "1 組" in result.note or "1 groups" in result.note or "有効" in result.note
+
+
+def test_compute_baseline_nan_when_active_days_below_threshold() -> None:
+    """運転日 < min_active_days なら baseline = NaN。"""
+    ts = pd.date_range("2023-06-01", periods=6, freq="D")
+    rows = [{
+        "target_no": "5630",
+        "dailygraphpt_ptdatetime": day,
+        "発電機電力": 300.0,
+        "要求電圧": 30.0,
+        "gen_no": 0,
+    } for day in ts]
+    df = pd.DataFrame(rows)
+    result = compute_baseline(
+        df, id_col="target_no", gen_col="gen_no",
+        datetime_col="dailygraphpt_ptdatetime", voltage_col="要求電圧",
+        power_col="発電機電力",
+    )
+    assert result.df["baseline"].isna().all()
+    assert "NaN=1" in result.note
