@@ -1,0 +1,36 @@
+{
+  "project": {
+    "name_prefix": "gene_plug_voltage_ep370g",
+    "endpoint": null
+  },
+  "data": {
+    "train_path": "outputs/ep370g_train_20260501.csv",
+    "test_path": "outputs/ep370g_train_20260501.csv",
+    "id_col": "location",
+    "target_col": "plug_voltage"
+  },
+  "task": {
+    "task_type": "regression",
+    "metric": null,
+    "positive_class": null
+  },
+  "partitioning": {
+    "cv_type": "group_cv",
+    "n_folds": 5,
+    "seed": 42,
+    "datetime_col": null,
+    "validation_duration": null,
+    "group_col": "location"
+  },
+  "autopilot": {
+    "mode": "quick",
+    "worker_count": -1,
+    "max_wait_minutes": 180,
+    "text_mining": false,
+    "exclude_columns": []
+  },
+  "output": {
+    "outputs_dir": "outputs",
+    "metrics_dir": "metrics"
+  }
+}
