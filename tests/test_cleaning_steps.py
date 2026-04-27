@@ -162,3 +162,58 @@ def test_assign_generation_basic_boundaries() -> None:
     )
     assert list(result.df["gen_no"]) == [0, 0, 1, 2, 2]
     assert result.excluded_rows == 0
+
+
+def test_assign_generation_same_day_as_event_gets_new_gen() -> None:
+    """交換日当日 00:00 / 14:30 / 23:59 のいずれも新世代側。"""
+    df = pd.DataFrame({
+        "target_no": ["5630"] * 3,
+        "dailygraphpt_ptdatetime": pd.to_datetime([
+            "2023-05-15 00:00:00",
+            "2023-05-15 14:30:00",
+            "2023-05-15 23:59:59",
+        ]),
+    })
+    events = {"5630": [pd.Timestamp("2023-05-15")]}
+    result = assign_generation(
+        df, id_col="target_no", datetime_col="dailygraphpt_ptdatetime",
+        events_by_location=events,
+    )
+    assert list(result.df["gen_no"]) == [1, 1, 1]
+
+
+def test_assign_generation_no_events_assigns_all_zero() -> None:
+    df = pd.DataFrame({
+        "target_no": ["9140", "9140"],
+        "dailygraphpt_ptdatetime": pd.to_datetime(["2024-01-01", "2025-01-01"]),
+    })
+    events: dict[str, list[pd.Timestamp]] = {"9140": []}
+    result = assign_generation(
+        df, id_col="target_no", datetime_col="dailygraphpt_ptdatetime",
+        events_by_location=events,
+    )
+    assert list(result.df["gen_no"]) == [0, 0]
+
+
+def test_assign_generation_missing_location_assigns_zero() -> None:
+    df = pd.DataFrame({
+        "target_no": ["5630", "9999"],
+        "dailygraphpt_ptdatetime": pd.to_datetime(["2024-01-01", "2024-01-01"]),
+    })
+    events = {"5630": [pd.Timestamp("2023-06-01")]}
+    result = assign_generation(
+        df, id_col="target_no", datetime_col="dailygraphpt_ptdatetime",
+        events_by_location=events,
+    )
+    # 9999 は dict に無い → gen=0、5630 は 2024-01-01 が events[0]=2023-06-01 より後 → gen=1
+    assert list(result.df["gen_no"]) == [1, 0]
+    assert "1 locations had no events" in result.note
+
+
+def test_assign_generation_requires_existing_columns() -> None:
+    df = pd.DataFrame({"target_no": ["5630"]})
+    with pytest.raises(ValueError, match="missing required column"):
+        assign_generation(
+            df, id_col="target_no", datetime_col="missing_col",
+            events_by_location={},
+        )
