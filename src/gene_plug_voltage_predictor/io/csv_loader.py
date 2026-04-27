@@ -6,29 +6,45 @@ from pathlib import Path
 
 import pandas as pd
 
-from .schema import InputSchema
+from .schema import CANONICAL_RENAMES, InputSchema
 
 
 def load_raw_csv(
     path: Path,
     *,
-    expected_model_type: str,
+    expected_mcnkind_id: int,
+    expected_rated_kw: int,
     schema: InputSchema,
 ) -> pd.DataFrame:
-    """CSV を読み込み、機種列との整合性を検証する。
+    """CSV を読み込み、機種列・定格列との整合性を検証する。
+
+    - encoding は utf-8-sig 固定（specs/input_schema.md §2）。
+    - 読み込み直後に CANONICAL_RENAMES を適用し、EP400G 形式（`要求電圧1`..）を
+      EP370G 形式（`要求電圧_1`..）へ正規化する（ADR-010）。
+    - `mcnkind_id` 全行が `expected_mcnkind_id` と一致することを検証。
+    - `target_output` 全行が `expected_rated_kw` と一致することを検証。
 
     Raises:
-        ValueError: 必須カラム欠落 or 機種列の値がディレクトリ名推定と不一致。
+        ValueError: 必須カラム欠落 / mcnkind_id 不一致 / rated_output 不一致。
     """
     df = pd.read_csv(path, encoding="utf-8-sig")
+    df = df.rename(columns=CANONICAL_RENAMES)
+
     missing = [c for c in schema.required_columns if c not in df.columns]
     if missing:
         raise ValueError(f"missing required columns in {path.name}: {missing}")
 
-    actual = df[schema.model_type_col].unique()
-    if not (len(actual) == 1 and actual[0] == expected_model_type):
+    actual_mcnkind = df[schema.mcnkind_col].unique().tolist()
+    if not (len(actual_mcnkind) == 1 and actual_mcnkind[0] == expected_mcnkind_id):
         raise ValueError(
-            f"model_type mismatch in {path.name}: "
-            f"expected={expected_model_type}, found={list(actual)}"
+            f"mcnkind_id mismatch in {path.name}: "
+            f"expected={expected_mcnkind_id}, found={actual_mcnkind}"
+        )
+
+    actual_rated = df[schema.rated_output_col].unique().tolist()
+    if not (len(actual_rated) == 1 and actual_rated[0] == expected_rated_kw):
+        raise ValueError(
+            f"rated_output mismatch in {path.name}: "
+            f"expected={expected_rated_kw}, found={actual_rated}"
         )
     return df
