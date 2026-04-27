@@ -108,3 +108,15 @@ def test_nan_plug_excluded_from_quorum() -> None:
     df["要求電圧_6"] = float("nan")
     events = detect_exchange_events(df, voltage_cols=_VCOLS)
     assert len(events) == 1
+
+
+def test_merge_window_collapses_consecutive_days() -> None:
+    """交換日周辺で複数日ヒットしても merge_window_days 以内なら 1 event にまとまる。"""
+    df = _synth_wide(
+        days=80,
+        exchanges=((40, (22, 22, 22, 22, 22, 22)),),
+    )
+    events = detect_exchange_events(
+        df, voltage_cols=_VCOLS, merge_window_days=7,
+    )
+    assert len(events) == 1
