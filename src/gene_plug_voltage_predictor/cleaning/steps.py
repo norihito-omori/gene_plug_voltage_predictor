@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
 import pandas as pd
+
+_logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -190,3 +193,79 @@ def assign_generation(
             f"{len(missing_ids)} locations had no events (gen=0 全行)"
         )
     return StepResult(df=out, excluded_rows=0, note="; ".join(note_parts))
+
+
+def compute_baseline(
+    df: pd.DataFrame,
+    *,
+    id_col: str,
+    gen_col: str,
+    datetime_col: str,
+    voltage_col: str,
+    power_col: str,
+    baseline_days: int = 30,
+    min_active_days: int = 7,
+    baseline_out_col: str = "baseline",
+) -> StepResult:
+    """(id, gen) ごとに baseline を計算し、全行に broadcast 付与する（ADR-014 §C-4）。
+
+    baseline = 世代開始 gen_start から (gen_start + baseline_days) 日未満（排他）の
+    範囲で voltage_col 日次最大の中央値。運転日 < min_active_days なら NaN。
+    """
+    if baseline_days <= 0:
+        raise ValueError(f"baseline_days must be > 0 (got {baseline_days})")
+    if min_active_days <= 0:
+        raise ValueError(f"min_active_days must be > 0 (got {min_active_days})")
+    if gen_col not in df.columns:
+        raise ValueError(
+            f"gen_col '{gen_col}' missing — run assign_generation first"
+        )
+    if voltage_col not in df.columns:
+        raise ValueError(
+            f"voltage_col '{voltage_col}' missing — run melt_voltage_columns first"
+        )
+    for c in (id_col, datetime_col, power_col):
+        if c not in df.columns:
+            raise ValueError(f"missing required column: {c}")
+
+    work = df.copy()
+    work[datetime_col] = pd.to_datetime(work[datetime_col], errors="coerce")
+    running = work[work[power_col] > 0].copy()
+    running["_date"] = running[datetime_col].dt.normalize()
+
+    baseline_rows: list[dict] = []
+    total_groups = 0
+    valid_groups = 0
+    nan_groups = 0
+    for (loc, gen), group in running.groupby([id_col, gen_col], sort=False):
+        total_groups += 1
+        gen_start = group["_date"].min()
+        window_end = gen_start + pd.Timedelta(days=baseline_days)
+        window = group[group["_date"] < window_end]
+        daily_max = window.groupby("_date")[voltage_col].max().dropna()
+        active_days = len(daily_max)
+        if active_days < min_active_days:
+            baseline_rows.append({id_col: loc, gen_col: gen, baseline_out_col: float("nan")})
+            nan_groups += 1
+        else:
+            baseline_rows.append({
+                id_col: loc, gen_col: gen,
+                baseline_out_col: float(daily_max.median()),
+            })
+            valid_groups += 1
+
+    baseline_map = pd.DataFrame(baseline_rows)
+    if baseline_map.empty:
+        out = df.copy()
+        out[baseline_out_col] = float("nan")
+        note = "no (id, gen) groups found"
+        _logger.warning(note)
+        return StepResult(df=out, excluded_rows=0, note=note)
+
+    out = df.merge(baseline_map, on=[id_col, gen_col], how="left")
+    note = (
+        f"baseline 計算: {total_groups} 組, 有効={valid_groups}, NaN={nan_groups}"
+    )
+    if valid_groups == 0:
+        _logger.warning("All baseline values are NaN")
+    return StepResult(df=out, excluded_rows=0, note=note)

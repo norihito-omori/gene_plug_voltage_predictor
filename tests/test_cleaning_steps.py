@@ -6,6 +6,7 @@ import pytest
 from gene_plug_voltage_predictor.cleaning.steps import (
     StepResult,
     assign_generation,
+    compute_baseline,
     exclude_location_plug,
     exclude_locations,
     filter_by_rated_power_ratio,
@@ -217,3 +218,33 @@ def test_assign_generation_requires_existing_columns() -> None:
             df, id_col="target_no", datetime_col="missing_col",
             events_by_location={},
         )
+
+
+def test_compute_baseline_happy_path() -> None:
+    """1 機場 × 1 世代、30 日分運転（6 プラグ × 30 日 = 180 rows）で baseline 中央値が broadcast される。"""
+    ts = pd.date_range("2023-06-01 00:00", periods=30, freq="D")
+    rows = []
+    for day in ts:
+        for plug in range(1, 7):
+            rows.append({
+                "target_no": "5630",
+                "dailygraphpt_ptdatetime": day,
+                "発電機電力": 300.0,
+                "要求電圧": 25.0 + plug,  # プラグごとに 26..31
+                "管理No_プラグNo": f"5630_{plug}",
+                "プラグNo": plug,
+                "gen_no": 0,
+            })
+    df = pd.DataFrame(rows)
+    result = compute_baseline(
+        df,
+        id_col="target_no",
+        gen_col="gen_no",
+        datetime_col="dailygraphpt_ptdatetime",
+        voltage_col="要求電圧",
+        power_col="発電機電力",
+    )
+    # 各日の max = 31（プラグ6）、30 日分の median = 31
+    assert result.excluded_rows == 0
+    assert set(result.df["baseline"].unique()) == {31.0}
+    assert "1 組" in result.note or "1 groups" in result.note or "有効" in result.note
