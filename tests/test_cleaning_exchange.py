@@ -73,3 +73,9 @@ def test_detects_clear_level_shift() -> None:
     assert len(events) == 1
     expected = pd.Timestamp("2023-01-31")  # start + 30 days
     assert abs((events[0] - expected).days) <= 3
+
+
+def test_no_detection_without_shift() -> None:
+    df = _synth_wide(days=60, exchanges=())
+    events = detect_exchange_events(df, voltage_cols=_VCOLS)
+    assert events == []
