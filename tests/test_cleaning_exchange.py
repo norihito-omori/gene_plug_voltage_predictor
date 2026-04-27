@@ -120,3 +120,15 @@ def test_merge_window_collapses_consecutive_days() -> None:
         df, voltage_cols=_VCOLS, merge_window_days=7,
     )
     assert len(events) == 1
+
+
+def test_cutoff_filter_drops_early_running() -> None:
+    """cutoff より前の level shift は検出対象から除外される。"""
+    df = _synth_wide(
+        days=60,
+        exchanges=((15, (22, 22, 22, 22, 22, 22)),),
+    )
+    events = detect_exchange_events(
+        df, voltage_cols=_VCOLS, cutoff=pd.Timestamp("2023-02-01"),
+    )
+    assert events == []
