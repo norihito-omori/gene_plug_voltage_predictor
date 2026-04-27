@@ -183,9 +183,13 @@ def main() -> int:
     df = pd.concat(frames, ignore_index=True)
     specs = _build_specs(cfg.get("steps") or [])
     pipeline = CleaningPipeline(specs)
+    cutoff_by_location = {
+        loc: pd.Timestamp(dt) for loc, dt in cutoff_map.items()
+    }
     cleaned, history = pipeline.run(
         df,
         runtime_params={
+            "filter_by_location_cutoff": {"cutoff_by_location": cutoff_by_location},
             "assign_generation": {"events_by_location": events_by_location},
         },
     )

@@ -15,6 +15,7 @@ from .steps import (
     compute_baseline,
     exclude_location_plug,
     exclude_locations,
+    filter_by_location_cutoff,
     filter_by_rated_power_ratio,
     filter_cumulative_runtime,
     melt_voltage_columns,
@@ -26,6 +27,7 @@ StepFn = Callable[..., StepResult]
 
 _STEP_REGISTRY: dict[str, StepFn] = {
     "exclude_locations": exclude_locations,
+    "filter_by_location_cutoff": filter_by_location_cutoff,
     "filter_cumulative_runtime": filter_cumulative_runtime,
     "filter_by_rated_power_ratio": filter_by_rated_power_ratio,
     "melt_voltage_columns": melt_voltage_columns,

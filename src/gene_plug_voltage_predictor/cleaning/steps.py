@@ -36,6 +36,45 @@ def exclude_locations(
     return StepResult(df=out, excluded_rows=len(df) - len(out), note=note)
 
 
+def filter_by_location_cutoff(
+    df: pd.DataFrame,
+    *,
+    id_col: str,
+    datetime_col: str,
+    cutoff_by_location: Mapping[str, pd.Timestamp],
+) -> StepResult:
+    """機場別の開始日時 cutoff 以前の行を除外する（ADR-012 L-09）。
+
+    `cutoff_by_location` に含まれない機場の行は素通し。
+    境界は包含（行の datetime >= cutoff は keep）。
+    """
+    for c in (id_col, datetime_col):
+        if c not in df.columns:
+            raise ValueError(f"missing required column: {c}")
+
+    if not cutoff_by_location:
+        return StepResult(
+            df=df.reset_index(drop=True),
+            excluded_rows=0,
+            note="no cutoffs configured",
+        )
+
+    ids = df[id_col].astype(str)
+    dt = pd.to_datetime(df[datetime_col], errors="coerce")
+    keep = pd.Series(True, index=df.index)
+    for loc, cutoff in cutoff_by_location.items():
+        mask = ids == str(loc)
+        if not mask.any():
+            continue
+        keep.loc[mask] = dt.loc[mask] >= pd.Timestamp(cutoff)
+    out = df.loc[keep].reset_index(drop=True)
+    return StepResult(
+        df=out,
+        excluded_rows=len(df) - len(out),
+        note=f"cutoffs applied to {len(cutoff_by_location)} locations",
+    )
+
+
 def filter_cumulative_runtime(
     df: pd.DataFrame,
     *,

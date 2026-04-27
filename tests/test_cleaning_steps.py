@@ -9,6 +9,7 @@ from gene_plug_voltage_predictor.cleaning.steps import (
     compute_baseline,
     exclude_location_plug,
     exclude_locations,
+    filter_by_location_cutoff,
     filter_by_rated_power_ratio,
     filter_cumulative_runtime,
     melt_voltage_columns,
@@ -344,4 +345,79 @@ def test_compute_baseline_requires_gen_col_and_voltage_col() -> None:
             df_no_volt, id_col="target_no", gen_col="gen_no",
             datetime_col="dailygraphpt_ptdatetime", voltage_col="要求電圧",
             power_col="発電機電力",
+        )
+
+
+def test_filter_by_location_cutoff_drops_rows_before_cutoff() -> None:
+    """機場ごとに cutoff 以前の行を除外する(ADR-012 L-09)。"""
+    df = pd.DataFrame({
+        "target_no": ["5630", "5630", "5630", "8950", "8950"],
+        "dailygraphpt_ptdatetime": pd.to_datetime([
+            "2022-06-25 12:00",  # cutoff (2022-06-26 00:30) 前 → drop
+            "2022-06-26 01:00",  # cutoff 以降 → keep
+            "2023-01-01 00:00",  # keep
+            "2021-06-12 19:00",  # cutoff (2021-06-12 20:30) 前 → drop
+            "2021-06-13 00:00",  # keep
+        ]),
+    })
+    cutoff_by_location = {
+        "5630": pd.Timestamp("2022-06-26 00:30"),
+        "8950": pd.Timestamp("2021-06-12 20:30"),
+    }
+    result = filter_by_location_cutoff(
+        df,
+        id_col="target_no",
+        datetime_col="dailygraphpt_ptdatetime",
+        cutoff_by_location=cutoff_by_location,
+    )
+    assert isinstance(result, StepResult)
+    assert result.excluded_rows == 2
+    assert list(result.df["target_no"]) == ["5630", "5630", "8950"]
+
+
+def test_filter_by_location_cutoff_keeps_unknown_locations_intact() -> None:
+    """cutoff_by_location に無い機場の行は素通し。"""
+    df = pd.DataFrame({
+        "target_no": ["9110", "9110"],
+        "dailygraphpt_ptdatetime": pd.to_datetime(["2020-01-01", "2023-01-01"]),
+    })
+    result = filter_by_location_cutoff(
+        df,
+        id_col="target_no",
+        datetime_col="dailygraphpt_ptdatetime",
+        cutoff_by_location={"5630": pd.Timestamp("2022-06-26 00:30")},
+    )
+    assert result.excluded_rows == 0
+    assert len(result.df) == 2
+
+
+def test_filter_by_location_cutoff_inclusive_boundary() -> None:
+    """cutoff の瞬間の行は keep(cutoff >= 行時刻 では除外されない)。"""
+    df = pd.DataFrame({
+        "target_no": ["5630", "5630"],
+        "dailygraphpt_ptdatetime": pd.to_datetime([
+            "2022-06-26 00:30:00",  # == cutoff → keep
+            "2022-06-26 00:29:59",  # < cutoff → drop
+        ]),
+    })
+    result = filter_by_location_cutoff(
+        df,
+        id_col="target_no",
+        datetime_col="dailygraphpt_ptdatetime",
+        cutoff_by_location={"5630": pd.Timestamp("2022-06-26 00:30")},
+    )
+    assert result.excluded_rows == 1
+    assert list(result.df["dailygraphpt_ptdatetime"]) == [
+        pd.Timestamp("2022-06-26 00:30:00")
+    ]
+
+
+def test_filter_by_location_cutoff_requires_columns() -> None:
+    df = pd.DataFrame({"target_no": ["5630"]})
+    with pytest.raises(ValueError, match="missing required column"):
+        filter_by_location_cutoff(
+            df,
+            id_col="target_no",
+            datetime_col="missing_col",
+            cutoff_by_location={},
         )
