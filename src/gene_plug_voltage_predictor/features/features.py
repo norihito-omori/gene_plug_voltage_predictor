@@ -23,11 +23,11 @@ def add_features(
 
     cleaned_df（30分粒度）から baseline/gen_no/稼働割合/累積運転時間を日次集約して
     daily_df に left join し、lag 特徴量を plug 単位で付与する。
+    累積運転時間は日内で単調増加するため max で日次最大値を取得する。
     """
     result = daily_df.copy()
     result[date_col] = pd.to_datetime(result[date_col])
 
-    # cleaned_df から日次集約テーブルを作成
     tmp = cleaned_df.copy()
     tmp["_date"] = pd.to_datetime(tmp[datetime_col]).dt.normalize()
     threshold = rated_kw * 0.8
@@ -54,7 +54,6 @@ def add_features(
         .rename(columns={"_date": date_col})
     )
 
-    # daily_df に left join
     result = result.merge(
         daily_clean[
             [plug_id_col, date_col, baseline_col, gen_no_col, "稼働割合", runtime_col]
@@ -63,13 +62,12 @@ def add_features(
         how="left",
     )
 
-    # voltage_vs_baseline
     result["voltage_vs_baseline"] = result[daily_max_col] - result[baseline_col]
 
-    # lag 特徴量（plug 単位）
     result = result.sort_values([plug_id_col, date_col]).reset_index(drop=True)
     for lag in lags:
         col = f"{daily_max_col}_lag_{lag}"
+        # .values bypasses index alignment after groupby.shift
         result[col] = (
             result.groupby(plug_id_col, sort=True)[daily_max_col].shift(lag).values
         )
