@@ -24,11 +24,23 @@ def build_dataset_ts(
     cleaned_df: pd.DataFrame,
     *,
     rated_kw: float = 370.0,
+    threshold_kv: float | None = None,
 ) -> pd.DataFrame:
-    """cleaned CSV（30分粒度）から DataRobot TS 用日次データセットを生成する。"""
+    """cleaned CSV（30分粒度）から DataRobot TS 用日次データセットを生成する。
+
+    threshold_kv が指定された場合、daily_max >= threshold_kv の二値列
+    `exceeds_threshold` を追加する（二値分類ターゲット用）。
+    """
     daily = aggregate_daily_max_voltage(cleaned_df)
     daily = add_features(daily, cleaned_df, rated_kw=rated_kw)
     daily = build_ts_frame(daily)
+    if threshold_kv is not None:
+        daily["exceeds_threshold"] = (daily["daily_max"] >= threshold_kv).astype(int)
+        pos_rate = daily["exceeds_threshold"].mean()
+        _logger.info(
+            "added exceeds_threshold (>= %.1fkV): positive rate=%.1f%%",
+            threshold_kv, pos_rate * 100,
+        )
     _logger.info("built TS dataset: %d rows, %d columns", len(daily), len(daily.columns))
     return daily
 
@@ -49,12 +61,16 @@ def main() -> int:
         "--rated-kw", type=float, default=370.0,
         help="定格出力 kW（稼働割合の閾値 = rated_kw × 0.8, default: 370.0）",
     )
+    ap.add_argument(
+        "--threshold-kv", type=float, default=None,
+        help="二値ターゲット用閾値（kV）。指定すると exceeds_threshold 列を追加する。",
+    )
     args = ap.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
     cleaned_df = pd.read_csv(args.cleaned_csv, encoding="utf-8-sig")
-    dataset = build_dataset_ts(cleaned_df, rated_kw=args.rated_kw)
+    dataset = build_dataset_ts(cleaned_df, rated_kw=args.rated_kw, threshold_kv=args.threshold_kv)
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     dataset.to_csv(args.out, index=False, encoding="utf-8-sig")

@@ -1,0 +1,39 @@
+{
+  "project": {
+    "name_prefix": "gene_plug_voltage_ep370g_ts_binary_32kv",
+    "endpoint": null
+  },
+  "data": {
+    "train_path": "outputs/dataset_ep370g_ts_binary_32kv.csv",
+    "test_path": null,
+    "id_col": "管理No_プラグNo",
+    "target_col": "exceeds_threshold"
+  },
+  "task": {
+    "task_type": "timeseries",
+    "metric": null,
+    "positive_class": null
+  },
+  "partitioning": {
+    "cv_type": "datetime_cv",
+    "n_folds": 5,
+    "seed": 42,
+    "datetime_col": "date",
+    "validation_duration": "P7D",
+    "use_series_id": "管理No_プラグNo",
+    "forecast_window_start": 1,
+    "forecast_window_end": 7,
+    "group_col": null
+  },
+  "autopilot": {
+    "mode": "quick",
+    "worker_count": -1,
+    "max_wait_minutes": 360,
+    "text_mining": false,
+    "exclude_columns": []
+  },
+  "output": {
+    "outputs_dir": "outputs",
+    "metrics_dir": "metrics"
+  }
+}
