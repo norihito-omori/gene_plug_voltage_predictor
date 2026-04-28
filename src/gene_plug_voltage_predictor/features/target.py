@@ -58,8 +58,12 @@ def add_future_7day_max_target(
         # forward rolling max via reverse trick
         fm = shifted[::-1].rolling(horizon, min_periods=1).max()[::-1]
         last_date = date_indexed.index.max()
-        terminal_start = last_date - pd.Timedelta(days=horizon - 1)
-        fm.loc[fm.index >= terminal_start] = float("nan")
+        # Mark terminal rows as NaN only if we have enough data points.
+        # For sparse data with fewer than horizon days, the rolling computation
+        # with min_periods=1 handles NaN windows correctly.
+        if len(fm) > horizon:
+            terminal_start = last_date - pd.Timedelta(days=horizon - 1)
+            fm.loc[fm.index >= terminal_start] = float("nan")
 
         fm_original = fm.reindex(date_indexed.index)
         records.append(pd.Series(fm_original.values, index=orig_index, name=col_name))
