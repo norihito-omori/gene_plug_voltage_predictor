@@ -54,6 +54,11 @@ class InputSchema(BaseModel):
         description="目的変数。CANONICAL_RENAMES 適用後の正規名（EP370G 形式）",
     )
 
+    power_col: str = Field(default="発電機電力", description="発電機電力(kW)列。運転中判定に使用")
+    runtime_col: str = Field(
+        default="累積運転時間", description="累積運転時間(h)列。L-02 フィルタに使用"
+    )
+
     @property
     def required_columns(self) -> list[str]:
         return [
@@ -62,5 +67,7 @@ class InputSchema(BaseModel):
             self.mcnkind_col,
             self.datetime_col,
             self.rated_output_col,
+            self.power_col,
+            self.runtime_col,
             *self.voltage_cols,
         ]
