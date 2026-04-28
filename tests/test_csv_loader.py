@@ -9,7 +9,7 @@ from gene_plug_voltage_predictor.io.csv_loader import load_raw_csv
 from gene_plug_voltage_predictor.io.schema import InputSchema
 
 _BASE_COLS = (
-    "target_id,target_no,mcnkind_id,dailygraphpt_ptdatetime,target_output,"
+    "target_id,管理No,mcnkind_id,dailygraphpt_ptdatetime,target_output,"
     "発電機電力,累積運転時間,"
 )
 _EP370G_HEADER = _BASE_COLS + "要求電圧_1,要求電圧_2,要求電圧_3,要求電圧_4,要求電圧_5,要求電圧_6"
@@ -33,7 +33,7 @@ def test_load_raw_csv_rejects_file_with_wrong_mcnkind_id(tmp_path: Path) -> None
     _write_csv(
         csv,
         _EP370G_HEADER + "\n"
-        "140,563,115,2018-03-27 00:30:00,370,300.0,1500.0,220,220,220,220,220,220\n",
+        "140,5630,115,2018-03-27 00:30:00,370,300.0,1500.0,220,220,220,220,220,220\n",
     )
     with pytest.raises(ValueError, match="mcnkind_id mismatch"):
         load_raw_csv(
@@ -51,7 +51,7 @@ def test_load_raw_csv_accepts_matching_mcnkind_id(tmp_path: Path) -> None:
     _write_csv(
         csv,
         _EP370G_HEADER + "\n"
-        "140,563,54,2018-03-27 00:30:00,370,300.0,1500.0,220,221,222,223,224,225\n",
+        "140,5630,54,2018-03-27 00:30:00,370,300.0,1500.0,220,221,222,223,224,225\n",
     )
     df = load_raw_csv(
         csv,
@@ -73,7 +73,7 @@ def test_load_raw_csv_rejects_mismatched_rated_output(tmp_path: Path) -> None:
     _write_csv(
         csv,
         _EP370G_HEADER + "\n"
-        "140,563,54,2018-03-27 00:30:00,400,300.0,1500.0,220,220,220,220,220,220\n",
+        "140,5630,54,2018-03-27 00:30:00,400,300.0,1500.0,220,220,220,220,220,220\n",
     )
     with pytest.raises(ValueError, match="rated_output mismatch"):
         load_raw_csv(
@@ -92,7 +92,7 @@ def test_load_raw_csv_normalizes_ep400g_columns(tmp_path: Path) -> None:
     _write_csv(
         csv,
         _EP400G_HEADER + "\n"
-        "159,576,115,2018-03-27 00:30:00,400,300.0,1500.0,230,231,232,233,234,235\n",
+        "159,5760,115,2018-03-27 00:30:00,400,300.0,1500.0,230,231,232,233,234,235\n",
     )
     df = load_raw_csv(
         csv,
@@ -118,7 +118,7 @@ def test_load_raw_csv_keeps_only_required_columns(tmp_path: Path) -> None:
     _write_csv(
         csv,
         _EP370G_HEADER_WIDE + "\n"
-        "140,563,54,2018-03-27 00:30:00,370,"
+        "140,5630,54,2018-03-27 00:30:00,370,"
         "300.0,1500.0,220,221,222,223,224,225,380.0,1500,foo,bar\n",
     )
     df = load_raw_csv(

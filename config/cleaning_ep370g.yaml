@@ -4,14 +4,76 @@ expected_mcnkind_id: 54
 rated_power_kw: 370
 input_dir: E:/gene/input/EP370G_orig
 dataset_name: ep370g-baseline
-# ADR-003 で確定。空だと CLI がエラー。
-target_locations: []
-# ADR-001 / ADR-004..008 の棚卸し結果に応じて追加。
+# Task 7 スモーク用 3 機場（ADR-003 確定後に Phase 0 対象 27 機場へ拡張予定）。
+#   5630: cutoff あり（2022-06-26 00:30）、legacy summary5 に複数イベント
+#   8950: cutoff あり（2021-06-12 20:30）、運用期間最長、L-01→L-09 吸収事例
+#   9110: cutoff なし、A-5c で legacy 追加確定分あり（2025-05-31, 2025-09-04）
+target_locations:
+  - 5630
+  - 8950
+  - 9110
 steps:
-  # 例（L-01 採用時）
-  # - name: exclude_locations
-  #   enabled: true
-  #   adr: decision-004
-  #   params:
-  #     location_col: target_id
-  #     excluded: [8950]
+  # L-09 (ADR-012): 機場別の開始日時 cutoff 以前の行を除外。
+  # cutoff_by_location は CLI が constants.EP370G_START_DATETIMES から runtime 注入。
+  - name: filter_by_location_cutoff
+    enabled: true
+    adr: decision-012
+    params:
+      id_col: 管理No
+      datetime_col: dailygraphpt_ptdatetime
+
+  # L-02 (ADR-001): 500h 点検影響のある初期データを除外。
+  - name: filter_cumulative_runtime
+    enabled: true
+    adr: decision-001
+    params:
+      runtime_col: 累積運転時間
+      min_hours: 1000
+
+  # ADR-009: 要求電圧 6 列を縦持ちに展開。管理No_プラグNo / プラグNo を生成。
+  - name: melt_voltage_columns
+    enabled: true
+    adr: decision-009
+    params:
+      location_no_col: 管理No
+      voltage_cols:
+        - 要求電圧_1
+        - 要求電圧_2
+        - 要求電圧_3
+        - 要求電圧_4
+        - 要求電圧_5
+        - 要求電圧_6
+
+  # L-03 + L-08 (ADR-011): プラグ単位の除外。
+  #   9221_4: プラグ交換疑い
+  #   9140_6 / 9141_6: センサー異常（常時欠損）
+  - name: exclude_location_plug
+    enabled: true
+    adr: decision-011
+    params:
+      id_col: 管理No_プラグNo
+      excluded:
+        - "9221_4"
+        - "9140_6"
+        - "9141_6"
+
+  # ADR-014: 行日時 → gen_no 付与。events_by_location は CLI が runtime 注入。
+  - name: assign_generation
+    enabled: true
+    adr: decision-014
+    params:
+      id_col: 管理No
+      datetime_col: dailygraphpt_ptdatetime
+
+  # ADR-014 §C-4: (target_no, gen_no) ごとに baseline を計算し broadcast。
+  - name: compute_baseline
+    enabled: true
+    adr: decision-014
+    params:
+      id_col: 管理No
+      gen_col: gen_no
+      datetime_col: dailygraphpt_ptdatetime
+      voltage_col: 要求電圧
+      power_col: 発電機電力
+      baseline_days: 30
+      min_active_days: 7

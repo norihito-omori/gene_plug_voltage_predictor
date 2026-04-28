@@ -27,7 +27,7 @@ class InputSchema(BaseModel):
 
     location_col: str = Field(default="target_id", description="機場ID 列")
     location_no_col: str = Field(
-        default="target_no",
+        default="管理No",
         description="機場No 列。ファイル名 {機場No}.csv と一致し、管理No_プラグNo の前半を構成",
     )
     mcnkind_col: str = Field(
