@@ -96,6 +96,44 @@ def test_build_partition_invalid_cv_type_raises() -> None:
         part_mod.build_partition(_base_partitioning(cv_type="kfold"))
 
 
+def test_build_partition_datetime_cv_with_multiseries(mocker: MockerFixture) -> None:
+    """use_series_id が設定された場合、multiseries_id_columns と forecast_window が設定される."""
+    mock_spec = mocker.MagicMock()
+    mocker.patch.object(part_mod.dr, "DatetimePartitioningSpecification", return_value=mock_spec)
+    part_mod.build_partition(
+        _base_partitioning(
+            cv_type="datetime_cv",
+            datetime_col="graphpt_ptdatetime",
+            validation_duration="P30D",
+            use_series_id="series_col",
+            forecast_window_start=2,
+            forecast_window_end=10,
+        )
+    )
+    assert mock_spec.multiseries_id_columns == ["series_col"]
+    assert mock_spec.forecast_window_start == 2
+    assert mock_spec.forecast_window_end == 10
+
+
+def test_build_partition_datetime_cv_without_multiseries(mocker: MockerFixture) -> None:
+    """use_series_id が None/未指定の場合、multiseries_id_columns は設定されない."""
+    mock_spec = mocker.MagicMock()
+    mocker.patch.object(part_mod.dr, "DatetimePartitioningSpecification", return_value=mock_spec)
+    part_mod.build_partition(
+        _base_partitioning(
+            cv_type="datetime_cv",
+            datetime_col="graphpt_ptdatetime",
+            validation_duration="P30D",
+        )
+    )
+    # multiseries_id_columns への代入は行われないこと
+    assert "multiseries_id_columns" not in [call[0] for call in mock_spec.mock_calls
+                                             if hasattr(call, "__setitem__")]
+    # より直接的なアサーション: __setattr__ が multiseries_id_columns で呼ばれていない
+    set_calls = [c for c in mock_spec.method_calls if c[0] == "multiseries_id_columns"]
+    assert len(set_calls) == 0
+
+
 def test_prepare_train_dataset_non_group_returns_original(
     tmp_path: Path, fixtures_dir: Path
 ) -> None:

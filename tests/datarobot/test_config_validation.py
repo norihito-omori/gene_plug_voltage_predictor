@@ -159,3 +159,14 @@ def test_load_config_parses_json(
 def test_load_config_raises_on_missing_file(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         config_mod.load_config(tmp_path / "nope.json")
+
+
+def test_validate_config_timeseries_ok(valid_config: dict[str, Any]) -> None:
+    """use_series_id / forecast_window_start / forecast_window_end を含む TS config が通ること."""
+    valid_config["partitioning"]["cv_type"] = "datetime_cv"
+    valid_config["partitioning"]["datetime_col"] = "graphpt_ptdatetime"
+    valid_config["partitioning"]["validation_duration"] = "P30D"
+    valid_config["partitioning"]["use_series_id"] = "series_col"
+    valid_config["partitioning"]["forecast_window_start"] = 1
+    valid_config["partitioning"]["forecast_window_end"] = 10
+    config_mod.validate_config(valid_config)  # 例外が発生しないこと

@@ -40,6 +40,9 @@ class PartitioningConfig(TypedDict):
     datetime_col: str | None
     validation_duration: str | None
     group_col: str | None
+    use_series_id: str | None
+    forecast_window_start: int | None
+    forecast_window_end: int | None
 
 
 class AutopilotConfig(TypedDict):

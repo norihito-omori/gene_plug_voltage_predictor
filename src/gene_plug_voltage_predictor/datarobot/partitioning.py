@@ -93,15 +93,23 @@ def build_partition(
     if cv_type == "datetime_cv":
         datetime_col = partitioning_config.get("datetime_col")
         validation_duration = partitioning_config.get("validation_duration")
+        use_series_id = partitioning_config.get("use_series_id")
+        forecast_window_start = partitioning_config.get("forecast_window_start", 1)
+        forecast_window_end = partitioning_config.get("forecast_window_end", 1)
         if datetime_col is None:
             raise ValueError("datetime_col is required for datetime_cv")
         if validation_duration is None:
             raise ValueError("validation_duration is required for datetime_cv")
-        return dr.DatetimePartitioningSpecification(
+        spec = dr.DatetimePartitioningSpecification(
             datetime_partition_column=datetime_col,
             number_of_backtests=n_folds,
             validation_duration=validation_duration,
         )
+        if use_series_id:
+            spec.multiseries_id_columns = [use_series_id]
+            spec.forecast_window_start = forecast_window_start
+            spec.forecast_window_end = forecast_window_end
+        return spec
     if cv_type == "group_cv":
         if fold_col is None:
             raise ValueError("fold_col is required for group_cv")
