@@ -36,32 +36,33 @@ def add_future_7day_max_target(
     daily_max_col: str = "daily_max",
     horizon: int = 7,
 ) -> pd.DataFrame:
-    """日次最大電圧 DataFrame に future_7d_max 列を付与して返す（copy）。
+    """日次最大電圧 DataFrame に future_{horizon}d_max 列を付与して返す（copy）。
 
-    翌 7 カレンダー日（t+1〜t+horizon）の daily_max の最大値を計算する。
+    翌 horizon カレンダー日（t+1〜t+horizon）の daily_max の最大値を計算する。
     非運転日は行なし（カレンダー補完して NaN として扱う）。
-    ウィンドウ内が全て NaN → future_7d_max = NaN。
+    ウィンドウ内が全て NaN → future_{horizon}d_max = NaN。
     """
     result = daily_df.copy()
     result[date_col] = pd.to_datetime(result[date_col])
-    result = result.sort_values([plug_id_col, date_col])
+    result = result.sort_values([plug_id_col, date_col]).reset_index(drop=True)
 
-    future_maxes: list[pd.Series] = []
-    for plug_id, group in result.groupby(plug_id_col, sort=False):
-        group = group.set_index(date_col)
-        full_idx = pd.date_range(group.index.min(), group.index.max(), freq="D")
-        reindexed = group[daily_max_col].reindex(full_idx)
+    col_name = f"future_{horizon}d_max"
+    records: list[pd.Series] = []
+    for _, group in result.groupby(plug_id_col, sort=True):
+        orig_index = group.index
+        date_indexed = group.set_index(date_col)
+        full_idx = pd.date_range(date_indexed.index.min(), date_indexed.index.max(), freq="D")
+        reindexed = date_indexed[daily_max_col].reindex(full_idx)
 
         shifted = reindexed.shift(-1)
+        # forward rolling max via reverse trick
         fm = shifted[::-1].rolling(horizon, min_periods=1).max()[::-1]
-        if len(fm) >= 1:
-            last_valid_date = group.index.max()
-            cutoff_date = last_valid_date - pd.Timedelta(days=horizon - 1)
-            fm.loc[fm.index > cutoff_date] = float("nan")
+        last_date = date_indexed.index.max()
+        terminal_start = last_date - pd.Timedelta(days=horizon - 1)
+        fm.loc[fm.index >= terminal_start] = float("nan")
 
-        future_maxes.append(fm.reindex(group.index))
+        fm_original = fm.reindex(date_indexed.index)
+        records.append(pd.Series(fm_original.values, index=orig_index, name=col_name))
 
-    all_future = pd.concat(future_maxes)
-    result = result.reset_index(drop=True)
-    result["future_7d_max"] = all_future.values
+    result[col_name] = pd.concat(records).sort_index()
     return result

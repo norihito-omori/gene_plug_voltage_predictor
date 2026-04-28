@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import pandas as pd
-import pytest
 
 from gene_plug_voltage_predictor.features.target import aggregate_daily_max_voltage
 
