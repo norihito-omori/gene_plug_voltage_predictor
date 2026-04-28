@@ -1,8 +1,8 @@
 """データセット組み立て CLI: cleaned CSV → DataRobot 学習用日次 CSV。
 
 処理順:
-  aggregate_daily_max_voltage → add_features → add_future_7day_max_target
-  → NaN 除外（future_{horizon}d_max / baseline）→ CSV 出力
+  aggregate_daily_max_voltage → add_features → add_trend_features
+  → add_future_7day_max_target → NaN 除外（future_{horizon}d_max / baseline）→ CSV 出力
 """
 from __future__ import annotations
 
@@ -18,6 +18,7 @@ from gene_plug_voltage_predictor.features.target import (
     add_future_7day_max_target,
     aggregate_daily_max_voltage,
 )
+from gene_plug_voltage_predictor.features.trend_features import add_trend_features
 
 _logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ def build_dataset(
 ) -> pd.DataFrame:
     daily = aggregate_daily_max_voltage(cleaned_df)
     daily = add_features(daily, cleaned_df, rated_kw=rated_kw)
+    daily = add_trend_features(daily)
     daily = add_future_7day_max_target(daily, horizon=horizon)
 
     target_col = f"future_{horizon}d_max"
