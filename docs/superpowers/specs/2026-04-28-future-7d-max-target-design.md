@@ -85,16 +85,26 @@ def add_future_7day_max_target(
 - 終端 horizon 行分は NaN（データが存在しないため）
 - in-place 変更ではなく copy を返す
 
-**実装メモ（rolling forward max）:**
+**実装メモ（rolling forward max — カレンダー日ベース）:**
+
+非運転日は `aggregate_daily_max_voltage` の出力に行が存在しないため、
+行シフトで rolling を取ると「稼働行数」でウィンドウが決まってしまう。
+翌 7 **カレンダー日**の最大を正しく取るため、plug 単位で以下の手順を踏む:
 
 ```python
 # plug 単位で処理
-shifted = group["daily_max"].shift(-1)           # t+1 起算
+# 1. カレンダー日付を完全な連続日付にリインデックス（非運転日を NaN で補完）
+full_idx = pd.date_range(group[date_col].min(), group[date_col].max(), freq="D")
+reindexed = group.set_index(date_col)["daily_max"].reindex(full_idx)
+# 2. t+1 起算の forward rolling max（horizon 日間）
+shifted = reindexed.shift(-1)
 future_max = shifted[::-1].rolling(horizon, min_periods=1).max()[::-1]
+# 3. 元の稼働日のみ抽出
+future_max = future_max.reindex(group[date_col].values)
 ```
 
-ただし `min_periods=1` により一部 NaN の場合は非 NaN 値の最大を返す。
-終端の `horizon` 行目以降（シフト後に NaN しかない範囲）は NaN になる。
+`min_periods=1` により一部 NaN（非運転日）は無視して残りの最大を返す。
+終端 horizon カレンダー日分は NaN になる。
 
 ---
 
@@ -140,6 +150,7 @@ daily_df
 | `test_add_future_7day_max_target_terminal_nan` | 最後の horizon 行は NaN |
 | `test_add_future_7day_max_target_plug_isolation` | plug A の値が plug B に漏れない |
 | `test_add_future_7day_max_target_partial_nan` | 一部 NaN の場合は非 NaN 最大を返す |
+| `test_add_future_7day_max_target_calendar_gap` | 非運転日（行なし）を挟んでもカレンダー 7 日で正しく計算される |
 
 ---
 
