@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 JST = ZoneInfo("Asia/Tokyo")
 _POLL_INTERVAL_SECONDS = 60
-_AUTOPILOT_COMPLETED_STATUS = "completed"
+_AUTOPILOT_COMPLETED_STATUS = "autopilot_complete"
 
 
 def create_project(config: dict[str, Any], train_csv_path: Path) -> Any:
