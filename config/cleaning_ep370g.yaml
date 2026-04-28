@@ -4,14 +4,35 @@ expected_mcnkind_id: 54
 rated_power_kw: 370
 input_dir: E:/gene/input/EP370G_orig
 dataset_name: ep370g-baseline
-# Task 7 スモーク用 3 機場（ADR-003 確定後に Phase 0 対象 27 機場へ拡張予定）。
-#   5630: cutoff あり（2022-06-26 00:30）、legacy summary5 に複数イベント
-#   8950: cutoff あり（2021-06-12 20:30）、運用期間最長、L-01→L-09 吸収事例
-#   9110: cutoff なし、A-5c で legacy 追加確定分あり（2025-05-31, 2025-09-04）
+# Phase 0 対象 27 機場（30 機場中 9570/9571/9850 を EP370G_EXCLUDED_LOCATIONS で除外）。
 target_locations:
   - 5630
   - 8950
   - 9110
+  - 9111
+  - 9120
+  - 9220
+  - 9221
+  - 9230
+  - 9240
+  - 9290
+  - 9380
+  - 9381
+  - 9410
+  - 9420
+  - 9421
+  - 9440
+  - 9520
+  - 9540
+  - 9580
+  - 9581
+  - 9610
+  - 9611
+  - 9690
+  - 9720
+  - 9760
+  - 9780
+  - 9820
 steps:
   # L-09 (ADR-012): 機場別の開始日時 cutoff 以前の行を除外。
   # cutoff_by_location は CLI が constants.EP370G_START_DATETIMES から runtime 注入。
