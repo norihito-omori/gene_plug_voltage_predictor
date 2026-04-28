@@ -23,7 +23,7 @@
     "group_col": "管理No_プラグNo"
   },
   "autopilot": {
-    "mode": "full_auto",
+    "mode": "quick",
     "worker_count": -1,
     "max_wait_minutes": 360,
     "text_mining": false,
