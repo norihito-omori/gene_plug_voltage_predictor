@@ -1,9 +1,12 @@
 """tests/test_cli_build_dataset.py"""
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 import pandas as pd
 
-from gene_plug_voltage_predictor.cli.build_dataset import build_dataset
+from gene_plug_voltage_predictor.cli.build_dataset import build_dataset, main
 
 
 def _make_cleaned_df() -> pd.DataFrame:
@@ -63,3 +66,31 @@ def test_build_dataset_drops_nan_baseline_rows() -> None:
     cleaned_df.loc[cleaned_df["管理No_プラグNo"] == "5630_1", "baseline"] = float("nan")
     result = build_dataset(cleaned_df, rated_kw=370.0, horizon=7)
     assert result["baseline"].notna().all(), "baseline must have no NaN"
+
+
+def test_build_dataset_creates_output_dir(tmp_path: Path) -> None:
+    """--out の親ディレクトリが存在しなくても自動作成される。"""
+    cleaned_df = _make_cleaned_df()
+    out_dir = tmp_path / "nested" / "subdir"
+    out_file = out_dir / "dataset.csv"
+    # out_dir はまだ存在しない
+    assert not out_dir.exists()
+
+    cleaned_csv = tmp_path / "cleaned.csv"
+    cleaned_df.to_csv(cleaned_csv, index=False, encoding="utf-8-sig")
+
+    orig_argv = sys.argv
+    sys.argv = [
+        "build_dataset",
+        "--cleaned-csv", str(cleaned_csv),
+        "--out", str(out_file),
+    ]
+    try:
+        ret = main()
+    finally:
+        sys.argv = orig_argv
+
+    assert ret == 0
+    assert out_file.exists()
+    result = pd.read_csv(out_file, encoding="utf-8-sig")
+    assert len(result) > 0

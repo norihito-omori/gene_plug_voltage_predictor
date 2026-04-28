@@ -4,10 +4,10 @@
     "endpoint": null
   },
   "data": {
-    "train_path": "outputs/ep370g_train_20260501.csv",
-    "test_path": "outputs/ep370g_train_20260501.csv",
-    "id_col": "location",
-    "target_col": "plug_voltage"
+    "train_path": "outputs/dataset_ep370g.csv",
+    "test_path": "outputs/dataset_ep370g.csv",
+    "id_col": "管理No_プラグNo",
+    "target_col": "future_7d_max"
   },
   "task": {
     "task_type": "regression",
@@ -20,7 +20,7 @@
     "seed": 42,
     "datetime_col": null,
     "validation_duration": null,
-    "group_col": "location"
+    "group_col": "管理No_プラグNo"
   },
   "autopilot": {
     "mode": "quick",
