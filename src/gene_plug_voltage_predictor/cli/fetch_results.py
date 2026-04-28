@@ -37,7 +37,10 @@ def main() -> int:
     ap.add_argument("--project-id", required=True, help="DataRobot プロジェクト ID")
     ap.add_argument("--config", required=True, type=Path, help="datarobot_*.json")
     ap.add_argument("--train", required=True, type=Path, help="学習に使った CSV（ハッシュ計算用）")
-    ap.add_argument("--experiment-log", required=True, type=Path)
+    ap.add_argument(
+        "--experiment-log", required=True, type=Path,
+        help="実験ログ Markdown の出力先（例: docs/experiments/exp-001.md）",
+    )
     ap.add_argument("--author", default="大森")
     ap.add_argument("--model-type", required=True, choices=["EP370G", "EP400G"])
     ap.add_argument("--topic", required=True)
