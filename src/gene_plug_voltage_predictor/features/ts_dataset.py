@@ -31,6 +31,10 @@ def build_ts_frame(
 
     非運転日を forward-fill で補完し、DataRobot TS が自動生成する lag/rolling 列を除外する。
     .copy() で入力を変更しない。
+
+    非運転日の 累積運転時間 は ffill されるため、operating_hours_since_exchange は
+    非運転日でも前日と同じ値（flat）になる。これは実運転時間ベースの劣化指標として
+    「停止中は劣化が進行しない」ことを反映した意図的な設計。
     """
     result = daily_df.copy()
     result[date_col] = pd.to_datetime(result[date_col])
@@ -60,6 +64,11 @@ def build_ts_frame(
 
         # plug_id_col を復元
         expanded[plug_id_col] = plug_id
+
+        # gen_no を Int64 に変換（ffill 後は float になることがある）
+        if gen_no_col in expanded.columns:
+            expanded[gen_no_col] = expanded[gen_no_col].astype("Int64")
+
         expanded.index.name = date_col
         expanded = expanded.reset_index()
 
@@ -67,16 +76,12 @@ def build_ts_frame(
 
     result = pd.concat(frames, ignore_index=True)
 
-    # gen_no が int になるよう変換（ffill 後は float になることがある）
-    if gen_no_col in result.columns:
-        result[gen_no_col] = result[gen_no_col].ffill().astype("Int64")
-
     # operating_hours_since_exchange: plug × gen_no の累積運転時間起点リセット
     origin = result.groupby([plug_id_col, gen_no_col])[runtime_col].transform("min")
     result["operating_hours_since_exchange"] = result[runtime_col] - origin
 
     # 管理No: plug_id_col を "_" で分割して左側を取得
-    if result[plug_id_col].str.contains("_").any():
+    if result[plug_id_col].str.contains("_").all():
         result["管理No"] = result[plug_id_col].str.split("_").str[0]
     else:
         raise ValueError(

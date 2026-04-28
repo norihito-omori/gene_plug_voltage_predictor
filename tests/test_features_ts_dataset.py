@@ -125,3 +125,17 @@ def test_kanri_no_column() -> None:
     result = build_ts_frame(daily_df)
     assert "管理No" in result.columns
     assert result.iloc[0]["管理No"] == "5630"
+
+
+def test_no_cross_plug_ffill() -> None:
+    """複数プラグが混在しても、ffill がプラグ境界をまたがない。"""
+    # plug A: gen_no=0 の最終日が 2024-01-03
+    daily_a = _make_daily_df("5630_1", ["2024-01-01", "2024-01-03"], [220.0, 222.0], gen_no=0)
+    # plug B: gen_no=1 の初日が 2024-01-04
+    daily_b = _make_daily_df("5630_2", ["2024-01-04", "2024-01-05"], [230.0, 231.0], gen_no=1)
+    daily_df = pd.concat([daily_a, daily_b], ignore_index=True)
+    result = build_ts_frame(daily_df)
+    # plug B の gen_no は 1 のまま（plug A の gen_no=0 で汚染されない）
+    b_df = result[result["管理No_プラグNo"] == "5630_2"].sort_values("date").reset_index(drop=True)
+    assert int(b_df.loc[0, "gen_no"]) == 1
+    assert int(b_df.loc[1, "gen_no"]) == 1
