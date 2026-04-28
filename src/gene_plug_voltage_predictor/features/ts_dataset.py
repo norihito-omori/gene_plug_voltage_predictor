@@ -14,7 +14,7 @@ TS_AUTO_COLS: list[str] = [
     "future_7d_max",
 ]
 
-_FFILL_COLS = ["daily_max", "baseline", "gen_no", "累積運転時間", "voltage_vs_baseline"]
+_FFILL_COLS = ["baseline", "gen_no", "累積運転時間", "voltage_vs_baseline"]
 
 
 def build_ts_frame(

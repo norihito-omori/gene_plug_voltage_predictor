@@ -47,7 +47,7 @@ def test_calendar_expansion() -> None:
 
 
 def test_forward_fill() -> None:
-    """daily_max が非運転日に forward-fill されている。"""
+    """baseline/gen_no 等の特徴量は非運転日に forward-fill され、daily_max は NaN のまま。"""
     daily_df = _make_daily_df(
         "5630_1",
         ["2024-01-01", "2024-01-03"],
@@ -57,8 +57,11 @@ def test_forward_fill() -> None:
     plug_df = (
         result[result["管理No_プラグNo"] == "5630_1"].sort_values("date").reset_index(drop=True)
     )
-    # 2024-01-02 は NaN ではなく 220.0（前日の値）
-    assert plug_df.loc[1, "daily_max"] == 220.0
+    # 非運転日(2024-01-02)の daily_max は NaN（DataRobot TS がスキップするため）
+    import math
+    assert math.isnan(plug_df.loc[1, "daily_max"])
+    # 特徴量（baseline）は ffill される
+    assert plug_df.loc[1, "baseline"] == 22.0
 
 
 def test_is_operating() -> None:
