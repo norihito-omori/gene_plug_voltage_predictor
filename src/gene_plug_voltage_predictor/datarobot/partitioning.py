@@ -104,6 +104,7 @@ def build_partition(
             datetime_partition_column=datetime_col,
             number_of_backtests=n_folds,
             validation_duration=validation_duration,
+            use_time_series=bool(use_series_id),
         )
         if use_series_id:
             spec.multiseries_id_columns = [use_series_id]

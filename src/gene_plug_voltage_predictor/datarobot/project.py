@@ -90,9 +90,6 @@ def configure_and_start(
 
     kwargs["partitioning_method"] = partition
 
-    if task_type == "timeseries":
-        kwargs["use_time_series"] = True
-
     positive_class = config["task"].get("positive_class")
     if task_type == "binary" and positive_class is not None:
         kwargs["positive_class"] = positive_class
