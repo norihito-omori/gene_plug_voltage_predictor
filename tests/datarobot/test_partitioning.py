@@ -117,8 +117,16 @@ def test_build_partition_datetime_cv_with_multiseries(mocker: MockerFixture) -> 
 
 def test_build_partition_datetime_cv_without_multiseries(mocker: MockerFixture) -> None:
     """use_series_id が None/未指定の場合、multiseries_id_columns は設定されない."""
+    import unittest.mock as mock
+
     mock_spec = mocker.MagicMock()
     mocker.patch.object(part_mod.dr, "DatetimePartitioningSpecification", return_value=mock_spec)
+
+    # sentinel を仕掛けて「代入されなかった」ことを確実に検証する
+    mock_spec.multiseries_id_columns = mock.sentinel.NOT_SET
+    mock_spec.forecast_window_start = mock.sentinel.NOT_SET
+    mock_spec.forecast_window_end = mock.sentinel.NOT_SET
+
     part_mod.build_partition(
         _base_partitioning(
             cv_type="datetime_cv",
@@ -126,12 +134,11 @@ def test_build_partition_datetime_cv_without_multiseries(mocker: MockerFixture) 
             validation_duration="P30D",
         )
     )
-    # multiseries_id_columns への代入は行われないこと
-    assert "multiseries_id_columns" not in [call[0] for call in mock_spec.mock_calls
-                                             if hasattr(call, "__setitem__")]
-    # より直接的なアサーション: __setattr__ が multiseries_id_columns で呼ばれていない
-    set_calls = [c for c in mock_spec.method_calls if c[0] == "multiseries_id_columns"]
-    assert len(set_calls) == 0
+
+    # use_series_id が未指定の場合、これらの属性は上書きされないこと
+    assert mock_spec.multiseries_id_columns is mock.sentinel.NOT_SET
+    assert mock_spec.forecast_window_start is mock.sentinel.NOT_SET
+    assert mock_spec.forecast_window_end is mock.sentinel.NOT_SET
 
 
 def test_prepare_train_dataset_non_group_returns_original(
