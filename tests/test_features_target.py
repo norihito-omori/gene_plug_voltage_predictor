@@ -18,26 +18,65 @@ def _make_30min_df(rows: list[dict]) -> pd.DataFrame:
 def test_aggregate_daily_max_voltage_basic() -> None:
     """2 plug × 2 日で daily_max が正しく集約される。"""
     df = _make_30min_df([
-        {"管理No_プラグNo": "5630_1", "dailygraphpt_ptdatetime": "2024-01-01 00:30", "要求電圧": 220.0, "発電機電力": 300.0},
-        {"管理No_プラグNo": "5630_1", "dailygraphpt_ptdatetime": "2024-01-01 01:00", "要求電圧": 225.0, "発電機電力": 300.0},
-        {"管理No_プラグNo": "5630_1", "dailygraphpt_ptdatetime": "2024-01-02 00:30", "要求電圧": 230.0, "発電機電力": 300.0},
-        {"管理No_プラグNo": "5630_2", "dailygraphpt_ptdatetime": "2024-01-01 00:30", "要求電圧": 210.0, "発電機電力": 300.0},
+        {
+            "管理No_プラグNo": "5630_1",
+            "dailygraphpt_ptdatetime": "2024-01-01 00:30",
+            "要求電圧": 220.0,
+            "発電機電力": 300.0,
+        },
+        {
+            "管理No_プラグNo": "5630_1",
+            "dailygraphpt_ptdatetime": "2024-01-01 01:00",
+            "要求電圧": 225.0,
+            "発電機電力": 300.0,
+        },
+        {
+            "管理No_プラグNo": "5630_1",
+            "dailygraphpt_ptdatetime": "2024-01-02 00:30",
+            "要求電圧": 230.0,
+            "発電機電力": 300.0,
+        },
+        {
+            "管理No_プラグNo": "5630_2",
+            "dailygraphpt_ptdatetime": "2024-01-01 00:30",
+            "要求電圧": 210.0,
+            "発電機電力": 300.0,
+        },
     ])
     result = aggregate_daily_max_voltage(df)
     assert set(result.columns) == {"管理No_プラグNo", "date", "daily_max"}
-    a1 = result[(result["管理No_プラグNo"] == "5630_1") & (result["date"] == pd.Timestamp("2024-01-01"))]
+    mask_a1 = (result["管理No_プラグNo"] == "5630_1") & (
+        result["date"] == pd.Timestamp("2024-01-01")
+    )
+    a1 = result[mask_a1]
     assert a1["daily_max"].iloc[0] == 225.0
-    a2 = result[(result["管理No_プラグNo"] == "5630_1") & (result["date"] == pd.Timestamp("2024-01-02"))]
+    mask_a2 = (result["管理No_プラグNo"] == "5630_1") & (
+        result["date"] == pd.Timestamp("2024-01-02")
+    )
+    a2 = result[mask_a2]
     assert a2["daily_max"].iloc[0] == 230.0
-    b1 = result[(result["管理No_プラグNo"] == "5630_2") & (result["date"] == pd.Timestamp("2024-01-01"))]
+    mask_b1 = (result["管理No_プラグNo"] == "5630_2") & (
+        result["date"] == pd.Timestamp("2024-01-01")
+    )
+    b1 = result[mask_b1]
     assert b1["daily_max"].iloc[0] == 210.0
 
 
 def test_aggregate_daily_max_voltage_excludes_non_running() -> None:
     """発電機電力 <= 0 の行は集約対象外。"""
     df = _make_30min_df([
-        {"管理No_プラグNo": "5630_1", "dailygraphpt_ptdatetime": "2024-01-01 00:30", "要求電圧": 250.0, "発電機電力": 0.0},
-        {"管理No_プラグNo": "5630_1", "dailygraphpt_ptdatetime": "2024-01-01 01:00", "要求電圧": 220.0, "発電機電力": 300.0},
+        {
+            "管理No_プラグNo": "5630_1",
+            "dailygraphpt_ptdatetime": "2024-01-01 00:30",
+            "要求電圧": 250.0,
+            "発電機電力": 0.0,
+        },
+        {
+            "管理No_プラグNo": "5630_1",
+            "dailygraphpt_ptdatetime": "2024-01-01 01:00",
+            "要求電圧": 220.0,
+            "発電機電力": 300.0,
+        },
     ])
     result = aggregate_daily_max_voltage(df)
     assert result["daily_max"].iloc[0] == 220.0
@@ -46,9 +85,24 @@ def test_aggregate_daily_max_voltage_excludes_non_running() -> None:
 def test_aggregate_daily_max_voltage_no_running_day_omitted() -> None:
     """全非運転日（発電機電力 <= 0 のみ）は日次テーブルに行が存在しない。"""
     df = _make_30min_df([
-        {"管理No_プラグNo": "5630_1", "dailygraphpt_ptdatetime": "2024-01-01 00:30", "要求電圧": 220.0, "発電機電力": 300.0},
-        {"管理No_プラグNo": "5630_1", "dailygraphpt_ptdatetime": "2024-01-02 00:30", "要求電圧": 999.0, "発電機電力": 0.0},
-        {"管理No_プラグNo": "5630_1", "dailygraphpt_ptdatetime": "2024-01-03 00:30", "要求電圧": 225.0, "発電機電力": 300.0},
+        {
+            "管理No_プラグNo": "5630_1",
+            "dailygraphpt_ptdatetime": "2024-01-01 00:30",
+            "要求電圧": 220.0,
+            "発電機電力": 300.0,
+        },
+        {
+            "管理No_プラグNo": "5630_1",
+            "dailygraphpt_ptdatetime": "2024-01-02 00:30",
+            "要求電圧": 999.0,
+            "発電機電力": 0.0,
+        },
+        {
+            "管理No_プラグNo": "5630_1",
+            "dailygraphpt_ptdatetime": "2024-01-03 00:30",
+            "要求電圧": 225.0,
+            "発電機電力": 300.0,
+        },
     ])
     result = aggregate_daily_max_voltage(df)
     dates = result["date"].tolist()
@@ -72,9 +126,11 @@ def test_add_future_7day_max_target_basic() -> None:
     df = _make_daily_df("5630_1", dates, values)
     result = add_future_7day_max_target(df)
     # day 1 (index 0): t+1〜t+7 = days 2〜8 → max(201..207) = 207
-    assert result.loc[result["date"] == pd.Timestamp("2024-01-01"), "future_7d_max"].iloc[0] == 207.0
+    val_day1 = result.loc[result["date"] == pd.Timestamp("2024-01-01"), "future_7d_max"].iloc[0]
+    assert val_day1 == 207.0
     # day 3 (index 2): t+1〜t+7 = days 4〜10 → max(203..209) = 209
-    assert result.loc[result["date"] == pd.Timestamp("2024-01-03"), "future_7d_max"].iloc[0] == 209.0
+    val_day3 = result.loc[result["date"] == pd.Timestamp("2024-01-03"), "future_7d_max"].iloc[0]
+    assert val_day3 == 209.0
 
 
 def test_add_future_7day_max_target_terminal_nan() -> None:
