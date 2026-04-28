@@ -15,7 +15,9 @@ logger = logging.getLogger(__name__)
 
 JST = ZoneInfo("Asia/Tokyo")
 _POLL_INTERVAL_SECONDS = 60
-_AUTOPILOT_COMPLETED_STATUS = "autopilot_complete"
+# get_status() returns {"stage": "modeling", "autopilot_done": True/False, ...}
+# The stage field stays "modeling" even after completion; autopilot_done is the
+# reliable completion signal.
 
 
 def create_project(config: dict[str, Any], train_csv_path: Path) -> Any:
@@ -113,9 +115,10 @@ def wait_for_autopilot(project: Any, config: dict[str, Any]) -> Any:
 
     while time.monotonic() < deadline:
         status = project.get_status()
-        stage = getattr(status, "stage", None) or status.get("stage")
-        logger.info("Autopilot status: %s", stage)
-        if stage == _AUTOPILOT_COMPLETED_STATUS:
+        done = status.get("autopilot_done", False)
+        stage = status.get("stage", "unknown")
+        logger.info("Autopilot status: %s (done=%s)", stage, done)
+        if done:
             logger.info("Autopilot completed for project %s", project.id)
             return project
         time.sleep(_POLL_INTERVAL_SECONDS)
