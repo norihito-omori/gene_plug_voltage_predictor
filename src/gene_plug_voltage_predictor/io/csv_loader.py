@@ -43,15 +43,15 @@ def load_raw_csv(
     if missing:
         raise ValueError(f"missing required columns in {path.name}: {missing}")
 
-    actual_mcnkind = df[schema.mcnkind_col].unique().tolist()
-    if not (len(actual_mcnkind) == 1 and actual_mcnkind[0] == expected_mcnkind_id):
+    actual_mcnkind = df[schema.mcnkind_col].dropna().unique().tolist()
+    if not (len(actual_mcnkind) == 1 and int(actual_mcnkind[0]) == expected_mcnkind_id):
         raise ValueError(
             f"mcnkind_id mismatch in {path.name}: "
             f"expected={expected_mcnkind_id}, found={actual_mcnkind}"
         )
 
-    actual_rated = df[schema.rated_output_col].unique().tolist()
-    if not (len(actual_rated) == 1 and actual_rated[0] == expected_rated_kw):
+    actual_rated = df[schema.rated_output_col].dropna().unique().tolist()
+    if not (len(actual_rated) == 1 and int(actual_rated[0]) == expected_rated_kw):
         raise ValueError(
             f"rated_output mismatch in {path.name}: "
             f"expected={expected_rated_kw}, found={actual_rated}"

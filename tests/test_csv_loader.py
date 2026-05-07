@@ -110,6 +110,28 @@ def test_load_raw_csv_normalizes_ep400g_columns(tmp_path: Path) -> None:
     assert df["要求電圧_6"].iloc[0] == 235
 
 
+def test_load_raw_csv_accepts_nan_metadata_rows(tmp_path: Path) -> None:
+    """NaN rows in mcnkind_id/target_output (new data format) are skipped by dropna()."""
+    d = tmp_path / "EP370G_orig"
+    d.mkdir()
+    csv = d / "5630.csv"
+    # Second row has NaN in mcnkind_id and target_output; non-NaN values are consistent.
+    _write_csv(
+        csv,
+        _EP370G_HEADER + "\n"
+        "140,5630,54,2018-03-27 00:30:00,370,300.0,1500.0,220,221,222,223,224,225\n"
+        "140,5630,,2018-03-28 00:30:00,,310.0,1510.0,220,221,222,223,224,225\n",
+    )
+    df = load_raw_csv(
+        csv,
+        expected_mcnkind_id=54,
+        expected_rated_kw=370,
+        schema=InputSchema(),
+    )
+    assert isinstance(df, pd.DataFrame)
+    assert len(df) == 2
+
+
 def test_load_raw_csv_keeps_only_required_columns(tmp_path: Path) -> None:
     """余分な列（排気温度等）はロード時に除外され、必要列のみ返る。"""
     d = tmp_path / "EP370G_orig"

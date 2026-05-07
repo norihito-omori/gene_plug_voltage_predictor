@@ -31,6 +31,23 @@ def test_filter_cumulative_runtime_removes_below_threshold() -> None:
     assert result.excluded_rows == 2
 
 
+def test_filter_cumulative_runtime_keeps_nan_row_preceded_by_valid_value() -> None:
+    """NaN runtime preceded by a valid above-threshold value is kept via ffill."""
+    df = pd.DataFrame({"cum_runtime_h": [1000.0, float("nan"), 1500.0]})
+    result = filter_cumulative_runtime(df, runtime_col="cum_runtime_h", min_hours=1000)
+    assert list(result.df.index) == [0, 1, 2]
+    assert result.excluded_rows == 0
+
+
+def test_filter_cumulative_runtime_excludes_leading_nan_row() -> None:
+    """NaN runtime at the start of the series (no prior value) is excluded after ffill."""
+    df = pd.DataFrame({"cum_runtime_h": [float("nan"), 1000.0, 1500.0]})
+    result = filter_cumulative_runtime(df, runtime_col="cum_runtime_h", min_hours=1000)
+    # First row's NaN cannot be ffilled → NaN >= 1000 is False → excluded
+    assert result.excluded_rows == 1
+    assert list(result.df["cum_runtime_h"]) == [1000.0, 1500.0]
+
+
 def test_filter_by_rated_power_ratio_keeps_only_80pct_and_above() -> None:
     df = pd.DataFrame({"power_kw": [100, 200, 296, 300]})
     # rated=370 → 80% = 296

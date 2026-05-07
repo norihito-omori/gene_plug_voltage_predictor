@@ -81,13 +81,17 @@ def filter_cumulative_runtime(
     runtime_col: str,
     min_hours: float,
 ) -> StepResult:
-    """累積運転時間が閾値未満の行を除外。ADR-001 L-02 (500h 点検影響) で使用。"""
-    mask = df[runtime_col] >= min_hours
+    """累積運転時間が閾値未満の行を除外。ADR-001 L-02 (500h 点検影響) で使用。
+
+    NaN は直前の有効値で前方補完してから比較する（データ欠損期間の新規行を除外しない）。
+    """
+    runtime = df[runtime_col].ffill()
+    mask = runtime >= min_hours
     out = df.loc[mask].reset_index(drop=True)
     return StepResult(
         df=out,
         excluded_rows=len(df) - len(out),
-        note=f"keep rows where {runtime_col} >= {min_hours}",
+        note=f"keep rows where {runtime_col} >= {min_hours} (ffill applied for NaN)",
     )
 
 
