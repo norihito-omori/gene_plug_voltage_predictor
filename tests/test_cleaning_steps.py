@@ -12,6 +12,7 @@ from gene_plug_voltage_predictor.cleaning.steps import (
     filter_by_location_cutoff,
     filter_by_rated_power_ratio,
     filter_cumulative_runtime,
+    filter_voltage_sensor_saturation,
     melt_voltage_columns,
 )
 
@@ -438,3 +439,24 @@ def test_filter_by_location_cutoff_requires_columns() -> None:
             datetime_col="missing_col",
             cutoff_by_location={},
         )
+
+
+def test_filter_voltage_sensor_saturation_removes_32767() -> None:
+    df = pd.DataFrame({"要求電圧": [20, 32767, 25, 32767, 18], "other": [1, 2, 3, 4, 5]})
+    result = filter_voltage_sensor_saturation(df, voltage_col="要求電圧")
+    assert list(result.df["要求電圧"]) == [20, 25, 18]
+    assert result.excluded_rows == 2
+
+
+def test_filter_voltage_sensor_saturation_no_saturation_rows() -> None:
+    df = pd.DataFrame({"要求電圧": [20, 25, 18]})
+    result = filter_voltage_sensor_saturation(df, voltage_col="要求電圧")
+    assert len(result.df) == 3
+    assert result.excluded_rows == 0
+
+
+def test_filter_voltage_sensor_saturation_custom_value() -> None:
+    df = pd.DataFrame({"v": [10, 9999, 20]})
+    result = filter_voltage_sensor_saturation(df, voltage_col="v", saturation_value=9999)
+    assert list(result.df["v"]) == [10, 20]
+    assert result.excluded_rows == 1

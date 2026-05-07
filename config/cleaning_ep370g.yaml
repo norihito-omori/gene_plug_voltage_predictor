@@ -65,6 +65,15 @@ steps:
         - 要求電圧_5
         - 要求電圧_6
 
+  # ADR-015: センサー飽和値 32767（int16最大値、通信エラー時ダミー）を除外。
+  # melt 後の縦持ち状態で適用。要求電圧列が単一列になっているため除外が明確。
+  - name: filter_voltage_sensor_saturation
+    enabled: true
+    adr: decision-015
+    params:
+      voltage_col: 要求電圧
+      saturation_value: 32767
+
   # L-03 + L-08 (ADR-011): プラグ単位の除外。
   #   9221_4: プラグ交換疑い
   #   9140_6 / 9141_6: センサー異常（常時欠損）

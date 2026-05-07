@@ -113,6 +113,26 @@ def filter_by_rated_power_ratio(
     )
 
 
+def filter_voltage_sensor_saturation(
+    df: pd.DataFrame,
+    *,
+    voltage_col: str,
+    saturation_value: int = 32767,
+) -> StepResult:
+    """センサー飽和値（デフォルト 32767 = int16 最大値）の行を除外する。ADR-015。
+
+    32767 は通信エラー時のダミー値であり物理量として無効。新データ（2025-12-22〜）で
+    初めて出現し、daily_max を汚染する原因となった。
+    """
+    mask = df[voltage_col] != saturation_value
+    out = df.loc[mask].reset_index(drop=True)
+    return StepResult(
+        df=out,
+        excluded_rows=len(df) - len(out),
+        note=f"excluded rows where {voltage_col} == {saturation_value} (sensor saturation / ADR-015)",
+    )
+
+
 def melt_voltage_columns(
     df: pd.DataFrame,
     *,
