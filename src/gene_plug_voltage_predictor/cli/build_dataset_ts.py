@@ -14,6 +14,7 @@ from pathlib import Path
 import pandas as pd
 
 from gene_plug_voltage_predictor.features.features import add_features
+from gene_plug_voltage_predictor.features.hours_at_threshold import add_hours_at_threshold
 from gene_plug_voltage_predictor.features.target import aggregate_daily_max_voltage
 from gene_plug_voltage_predictor.features.ts_dataset import build_ts_frame
 
@@ -33,6 +34,7 @@ def build_dataset_ts(
     """
     daily = aggregate_daily_max_voltage(cleaned_df)
     daily = add_features(daily, cleaned_df, rated_kw=rated_kw)
+    daily = add_hours_at_threshold(daily, cleaned_df)
     daily = build_ts_frame(daily)
     if threshold_kv is not None:
         daily["exceeds_threshold"] = (daily["daily_max"] >= threshold_kv).astype(int)

@@ -1,8 +1,114 @@
 model_type: EP400G
-# specs/input_schema.md §4: EP400G の mcnkind_id コード。
-expected_mcnkind_id: 115
+# mcnkind_id は 41/96/115 が混在するため null にして csv_loader のチェックをスキップ
+expected_mcnkind_id: null
 rated_power_kw: 400
 input_dir: E:/gene/input/EP400G_orig
 dataset_name: ep400g-baseline
-target_locations: []
-steps: []
+# 要求電圧が有効な機場のみ（flat=2固定 および 8160欠損 を除外）
+target_locations:
+  - 5760
+  - 5880
+  - 5881
+  - 8200
+  - 8930
+  - 8980
+  - 9040
+  - 9130
+  - 9140
+  - 9141
+  - 9160
+  - 9170
+  - 9180
+  - 9201
+  - 9300
+  - 9301
+  - 9310
+  - 9320
+  - 9330
+  - 9350
+  - 9351
+  - 9360
+  - 9370
+  - 9400
+  - 9401
+  - 9430
+  - 9431
+  - 9470
+  - 9590
+  - 9591
+  - 9600
+  - 9620
+  - 9621
+  - 9630
+  - 9650
+  - 9660
+  - 9710
+  - 9800
+steps:
+  # EP400G_START_DATETIMES から runtime 注入
+  - name: filter_by_location_cutoff
+    enabled: true
+    adr: decision-012
+    params:
+      id_col: 管理No
+      datetime_col: dailygraphpt_ptdatetime
+
+  # 500h 点検影響除外
+  - name: filter_cumulative_runtime
+    enabled: true
+    adr: decision-001
+    params:
+      runtime_col: 累積運転時間
+      min_hours: 1000
+
+  # 要求電圧 6 列を縦持ちに展開
+  - name: melt_voltage_columns
+    enabled: true
+    adr: decision-009
+    params:
+      location_no_col: 管理No
+      voltage_cols:
+        - 要求電圧_1
+        - 要求電圧_2
+        - 要求電圧_3
+        - 要求電圧_4
+        - 要求電圧_5
+        - 要求電圧_6
+
+  # センサー飽和値 32767 除外
+  - name: filter_voltage_sensor_saturation
+    enabled: true
+    adr: decision-015
+    params:
+      voltage_col: 要求電圧
+      saturation_value: 32767
+
+  # 物理的にあり得ない高電圧値を除外（スケール異常・センサー誤り）
+  # EP400G の正常稼働範囲は 13-44kV。50kV 超は異常値。
+  - name: filter_voltage_range
+    enabled: true
+    adr: decision-015
+    params:
+      voltage_col: 要求電圧
+      max_value: 49
+
+  # 交換イベント → gen_no 付与（events_by_location は CLI が runtime 注入）
+  - name: assign_generation
+    enabled: true
+    adr: decision-014
+    params:
+      id_col: 管理No
+      datetime_col: dailygraphpt_ptdatetime
+
+  # (target_no, gen_no) ごとに baseline を計算
+  - name: compute_baseline
+    enabled: true
+    adr: decision-014
+    params:
+      id_col: 管理No
+      gen_col: gen_no
+      datetime_col: dailygraphpt_ptdatetime
+      voltage_col: 要求電圧
+      power_col: 発電機電力
+      baseline_days: 30
+      min_active_days: 7

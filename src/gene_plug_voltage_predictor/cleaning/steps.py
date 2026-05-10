@@ -133,6 +133,25 @@ def filter_voltage_sensor_saturation(
     )
 
 
+def filter_voltage_range(
+    df: pd.DataFrame,
+    *,
+    voltage_col: str,
+    max_value: int,
+) -> StepResult:
+    """電圧値が max_value 超の行を異常値として除外する。
+
+    センサー異常・スケール誤りによる物理的にあり得ない値を除去する。
+    """
+    mask = df[voltage_col] <= max_value
+    out = df.loc[mask].reset_index(drop=True)
+    return StepResult(
+        df=out,
+        excluded_rows=len(df) - len(out),
+        note=f"excluded rows where {voltage_col} > {max_value} (voltage out of range)",
+    )
+
+
 def melt_voltage_columns(
     df: pd.DataFrame,
     *,

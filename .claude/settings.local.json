@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python *)",
+      "Read(//e/projects/contact-center-toolbox/60_domains/ress/gene_plug_voltage_predictor/**)",
+      "Read(//e/projects/contact-center-toolbox/60_domains/ress/gene_plug_voltage_predictor/experiments/**)",
+      "Read(//e/projects/contact-center-toolbox/60_domains/ress/gene_plug_voltage_predictor/cleaning/**)",
+      "Bash(uv run *)",
+      "Bash(tee outputs/exp-016_v2_train.log)",
+      "Read(//c/Users/999D3176/.claude/plugins/**)",
+      "Read(//c/Users/999D3176/.claude/**)",
+      "Skill(update-config)"
+    ]
+  }
+}

@@ -18,6 +18,7 @@ from .steps import (
     filter_by_location_cutoff,
     filter_by_rated_power_ratio,
     filter_cumulative_runtime,
+    filter_voltage_range,
     filter_voltage_sensor_saturation,
     melt_voltage_columns,
 )
@@ -31,6 +32,7 @@ _STEP_REGISTRY: dict[str, StepFn] = {
     "filter_by_location_cutoff": filter_by_location_cutoff,
     "filter_cumulative_runtime": filter_cumulative_runtime,
     "filter_by_rated_power_ratio": filter_by_rated_power_ratio,
+    "filter_voltage_range": filter_voltage_range,
     "filter_voltage_sensor_saturation": filter_voltage_sensor_saturation,
     "melt_voltage_columns": melt_voltage_columns,
     "exclude_location_plug": exclude_location_plug,

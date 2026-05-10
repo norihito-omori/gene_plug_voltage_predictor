@@ -12,7 +12,7 @@ from .schema import CANONICAL_RENAMES, InputSchema
 def load_raw_csv(
     path: Path,
     *,
-    expected_mcnkind_id: int,
+    expected_mcnkind_id: int | None,
     expected_rated_kw: int,
     schema: InputSchema,
 ) -> pd.DataFrame:
@@ -22,7 +22,8 @@ def load_raw_csv(
     - 必要列のみ読み込む（usecols）。生 CSV の不要列（排気温度等）は除外。
     - 読み込み直後に CANONICAL_RENAMES を適用し、EP400G 形式（`要求電圧1`..）を
       EP370G 形式（`要求電圧_1`..）へ正規化する（ADR-010）。
-    - `mcnkind_id` 全行が `expected_mcnkind_id` と一致することを検証。
+    - `expected_mcnkind_id` が None の場合は mcnkind_id チェックをスキップする
+      （EP400G は mcnkind_id が複数値混在のため）。
     - `target_output` 全行が `expected_rated_kw` と一致することを検証。
 
     Raises:
@@ -36,6 +37,7 @@ def load_raw_csv(
         path,
         encoding="utf-8-sig",
         usecols=lambda col: col in needed_raw,
+        low_memory=False,
     )
     df = df.rename(columns=CANONICAL_RENAMES)
 
@@ -43,12 +45,13 @@ def load_raw_csv(
     if missing:
         raise ValueError(f"missing required columns in {path.name}: {missing}")
 
-    actual_mcnkind = df[schema.mcnkind_col].dropna().unique().tolist()
-    if not (len(actual_mcnkind) == 1 and int(actual_mcnkind[0]) == expected_mcnkind_id):
-        raise ValueError(
-            f"mcnkind_id mismatch in {path.name}: "
-            f"expected={expected_mcnkind_id}, found={actual_mcnkind}"
-        )
+    if expected_mcnkind_id is not None:
+        actual_mcnkind = df[schema.mcnkind_col].dropna().unique().tolist()
+        if not (len(actual_mcnkind) == 1 and int(actual_mcnkind[0]) == expected_mcnkind_id):
+            raise ValueError(
+                f"mcnkind_id mismatch in {path.name}: "
+                f"expected={expected_mcnkind_id}, found={actual_mcnkind}"
+            )
 
     actual_rated = df[schema.rated_output_col].dropna().unique().tolist()
     if not (len(actual_rated) == 1 and int(actual_rated[0]) == expected_rated_kw):

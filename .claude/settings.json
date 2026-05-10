@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -c \"import sys,json,subprocess; d=json.load(sys.stdin); f=d.get('tool_input',{}).get('file_path',''); f.endswith('.py') and [subprocess.run(['uv','run','ruff','check','--fix',f]), subprocess.run(['uv','run','ruff','format',f])]\" 2>/dev/null || true",
+            "statusMessage": "ruff check + format..."
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -c \"import sys,json; d=json.load(sys.stdin); f=d.get('tool_input',{}).get('file_path',''); import os; exit(1) if os.path.basename(f) == '.env' else None\" || echo '{\"continue\":false,\"stopReason\":\".env の直接編集は禁止\"}'",
+            "statusMessage": ".env guard..."
+          }
+        ]
+      }
+    ]
+  }
+}

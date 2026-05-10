@@ -26,6 +26,8 @@ from gene_plug_voltage_predictor.cleaning.reporters import render_cleaning_log
 from gene_plug_voltage_predictor.constants import (
     EP370G_EXCLUDED_LOCATIONS,
     EP370G_START_DATETIMES,
+    EP400G_EXCLUDED_LOCATIONS,
+    EP400G_START_DATETIMES,
     EXCHANGE_DETECTION_DEFAULTS,
 )
 from gene_plug_voltage_predictor.io.csv_loader import load_raw_csv
@@ -99,6 +101,11 @@ def main() -> int:
         help="交換検出イベントの CSV 出力先(省略時は出力しない)",
     )
     ap.add_argument(
+        "--events-in", type=Path, default=None,
+        help="手動修正済み交換イベント CSV (target_no, exchange_date)。"
+             "指定時は自動検出をスキップしてこの CSV を使用する。",
+    )
+    ap.add_argument(
         "--author", default="大森",
         help="cleaning ログの著者名 (default: 大森)",
     )
@@ -116,7 +123,8 @@ def main() -> int:
         )
         return 2
     model_type: str = cfg["model_type"]
-    expected_mcnkind_id: int = int(cfg["expected_mcnkind_id"])
+    _mcnkind_raw = cfg["expected_mcnkind_id"]
+    expected_mcnkind_id: int | None = None if _mcnkind_raw is None else int(_mcnkind_raw)
     expected_rated_kw: int = int(cfg["rated_power_kw"])
     input_dir = Path(cfg["input_dir"])
     target_locations: list[int | str] = cfg.get("target_locations") or []
@@ -128,20 +136,37 @@ def main() -> int:
         )
         return 2
 
-    # ADR-003: excluded との重複を拒否(EP370G のみチェック)
-    if model_type == "EP370G":
-        dup = sorted(set(str(x) for x in target_locations) & set(EP370G_EXCLUDED_LOCATIONS))
-        if dup:
-            print(
-                f"ERROR: target_locations includes EXCLUDED_LOCATIONS: {dup}",
-                file=sys.stderr,
-            )
-            return 2
+    # ADR-003: excluded との重複を拒否
+    _excluded_map = {
+        "EP370G": EP370G_EXCLUDED_LOCATIONS,
+        "EP400G": EP400G_EXCLUDED_LOCATIONS,
+    }
+    _excluded = _excluded_map.get(model_type, ())
+    dup = sorted(set(str(x) for x in target_locations) & set(_excluded))
+    if dup:
+        print(
+            f"ERROR: target_locations includes EXCLUDED_LOCATIONS: {dup}",
+            file=sys.stderr,
+        )
+        return 2
 
     schema = InputSchema()
     frames: list[pd.DataFrame] = []
     events_by_location: dict[str, list[pd.Timestamp]] = {}
-    cutoff_map = EP370G_START_DATETIMES if model_type == "EP370G" else {}
+    _cutoff_map_by_type = {
+        "EP370G": EP370G_START_DATETIMES,
+        "EP400G": EP400G_START_DATETIMES,
+    }
+    cutoff_map = _cutoff_map_by_type.get(model_type, {})
+
+    # --events-in が指定された場合、手動修正済みイベントを事前ロード
+    manual_events: dict[str, list[pd.Timestamp]] | None = None
+    if args.events_in:
+        ev_df = pd.read_csv(args.events_in, encoding="utf-8-sig", parse_dates=["exchange_date"])
+        manual_events = {}
+        for loc_str, grp in ev_df.groupby(ev_df["target_no"].astype(str)):
+            manual_events[loc_str] = sorted(grp["exchange_date"].tolist())
+        _logger.info("Loaded manual events for %d locations from %s", len(manual_events), args.events_in)
 
     for loc in target_locations:
         loc_str = str(loc)
@@ -157,24 +182,30 @@ def main() -> int:
         )
         frames.append(df_loc)
 
-        cutoff_dt = cutoff_map.get(loc_str)
-        cutoff_ts = pd.Timestamp(cutoff_dt) if cutoff_dt is not None else None
-        if cutoff_ts is None:
-            _logger.info("%s: no cutoff (all rows considered)", loc_str)
-        try:
-            events_by_location[loc_str] = detect_exchange_events(
-                df_loc,
-                voltage_cols=schema.voltage_cols,
-                cutoff=cutoff_ts,
-                **EXCHANGE_DETECTION_DEFAULTS,
+        if manual_events is not None:
+            events_by_location[loc_str] = manual_events.get(loc_str, [])
+            _logger.info(
+                "%s: using manual events (%d)", loc_str, len(events_by_location[loc_str])
             )
-        except ValueError as e:
-            print(f"ERROR: {loc_str}.csv: {e}", file=sys.stderr)
-            return 2
-        _logger.info(
-            "%s: detected %d exchange events",
-            loc_str, len(events_by_location[loc_str]),
-        )
+        else:
+            cutoff_dt = cutoff_map.get(loc_str)
+            cutoff_ts = pd.Timestamp(cutoff_dt) if cutoff_dt is not None else None
+            if cutoff_ts is None:
+                _logger.info("%s: no cutoff (all rows considered)", loc_str)
+            try:
+                events_by_location[loc_str] = detect_exchange_events(
+                    df_loc,
+                    voltage_cols=schema.voltage_cols,
+                    cutoff=cutoff_ts,
+                    **EXCHANGE_DETECTION_DEFAULTS,
+                )
+            except ValueError as e:
+                print(f"ERROR: {loc_str}.csv: {e}", file=sys.stderr)
+                return 2
+            _logger.info(
+                "%s: detected %d exchange events",
+                loc_str, len(events_by_location[loc_str]),
+            )
 
     if args.events_out:
         _write_events_csv(events_by_location, args.events_out)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -100,10 +101,24 @@ def build_partition(
             raise ValueError("datetime_col is required for datetime_cv")
         if validation_duration is None:
             raise ValueError("validation_duration is required for datetime_cv")
+        holdout_start_date_raw = partitioning_config.get("holdout_start_date")
+        holdout_end_date_raw = partitioning_config.get("holdout_end_date")
+        holdout_start_date = (
+            datetime.strptime(holdout_start_date_raw, "%Y-%m-%d")
+            if isinstance(holdout_start_date_raw, str)
+            else holdout_start_date_raw
+        )
+        holdout_end_date = (
+            datetime.strptime(holdout_end_date_raw, "%Y-%m-%d")
+            if isinstance(holdout_end_date_raw, str)
+            else holdout_end_date_raw
+        )
         spec = dr.DatetimePartitioningSpecification(
             datetime_partition_column=datetime_col,
             number_of_backtests=n_folds,
             validation_duration=validation_duration,
+            holdout_start_date=holdout_start_date,
+            holdout_end_date=holdout_end_date,
             use_time_series=bool(use_series_id),
         )
         if use_series_id:
